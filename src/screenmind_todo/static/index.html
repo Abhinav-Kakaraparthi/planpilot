@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScreenMind Todo</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Local AI Screen Watcher</p>
+          <h1>ScreenMind Todo</h1>
+          <p class="lead">
+            A free local-first agent that observes your screen activity and builds a task list on
+            its own.
+          </p>
+          <p id="watcher-status" class="watcher-status">Watcher: ON</p>
+        </div>
+
+        <div class="hero-actions">
+          <button id="scan-now" type="button">Scan Now</button>
+          <button id="watcher-toggle" class="secondary-btn" type="button">Stop Watching</button>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Tasks</h2>
+            <span id="task-count">0</span>
+          </div>
+          <form id="task-form" class="task-form">
+            <input id="task-title" name="title" placeholder="Add manual task" required />
+            <button type="submit">Add</button>
+          </form>
+          <div id="tasks" class="stack">
+            <p class="empty">Loading tasks...</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Recent Activity</h2>
+            <span id="activity-count">0</span>
+          </div>
+          <div id="activities" class="stack">
+            <p class="empty">Loading activity...</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <template id="task-template">
+      <article class="card task-card">
+        <div>
+          <h3 class="card-title"></h3>
+          <p class="card-meta"></p>
+          <p class="card-body"></p>
+        </div>
+        <button class="complete-btn" type="button">Complete</button>
+      </article>
+    </template>
+
+    <template id="activity-template">
+      <article class="card">
+        <h3 class="card-title"></h3>
+        <p class="card-meta"></p>
+        <p class="card-body"></p>
+      </article>
+    </template>
+
+    <script src="/static/app.js?v=2"></script>
+  </body>
+</html>
