@@ -3,74 +3,238 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ScreenMind Todo</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <title>PlanPilot</title>
+    <link rel="stylesheet" href="/static/styles.css?v=3" />
   </head>
   <body>
-    <main class="page">
-      <section class="hero">
-        <div>
-          <p class="eyebrow">Local AI Screen Watcher</p>
-          <h1>ScreenMind Todo</h1>
-          <p class="lead">
-            A free local-first agent that observes your screen activity and builds a task list on
-            its own.
-          </p>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">PP</div>
+          <div>
+            <p class="eyebrow">Execution Intelligence</p>
+            <h1 class="brand-title">PlanPilot</h1>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <p class="sidebar-label">Workspace</p>
+          <div class="nav-pill active">Meeting Planner</div>
+          <div class="nav-pill">Screen Watcher</div>
+          <div class="nav-pill">Task Board</div>
+        </div>
+
+        <div class="sidebar-section">
+          <p class="sidebar-label">Watcher</p>
           <p id="watcher-status" class="watcher-status">Watcher: ON</p>
+          <div class="sidebar-actions">
+            <button id="scan-now" type="button">Scan Now</button>
+            <button id="watcher-toggle" class="secondary-btn" type="button">Stop Watching</button>
+          </div>
         </div>
+      </aside>
 
-        <div class="hero-actions">
-          <button id="scan-now" type="button">Scan Now</button>
-          <button id="watcher-toggle" class="secondary-btn" type="button">Stop Watching</button>
-        </div>
-      </section>
+      <section class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Meeting to execution plan</p>
+            <h2 class="page-title">Planner Dashboard</h2>
+          </div>
+        </header>
 
-      <section class="grid">
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Tasks</h2>
-            <span id="task-count">0</span>
-          </div>
-          <form id="task-form" class="task-form">
-            <input id="task-title" name="title" placeholder="Add manual task" required />
-            <button type="submit">Add</button>
-          </form>
-          <div id="tasks" class="stack">
-            <p class="empty">Loading tasks...</p>
-          </div>
-        </div>
+        <section class="planner-grid">
+          <div class="card planner-input-card">
+            <div class="card-header">
+              <h3>Create Meeting Plan</h3>
+              <span class="badge">AI</span>
+            </div>
 
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Recent Activity</h2>
-            <span id="activity-count">0</span>
+            <form id="meeting-form" class="meeting-form">
+              <label class="field">
+                <span>Meeting Title</span>
+                <input id="meeting-title" type="text" placeholder="Weekly project sync" required />
+              </label>
+
+              <label class="field">
+                <span>Target End Date</span>
+                <input id="meeting-target-date" type="date" />
+              </label>
+
+              <label class="field">
+                <span>Transcript</span>
+                <textarea
+                  id="meeting-transcript"
+                  rows="10"
+                  placeholder="Paste meeting transcript here..."
+                  required
+                ></textarea>
+              </label>
+
+              <div class="form-actions">
+                <button id="generate-plan-btn" type="submit">Generate Plan</button>
+              </div>
+            </form>
           </div>
-          <div id="activities" class="stack">
-            <p class="empty">Loading activity...</p>
+
+          <div class="card meeting-summary-card">
+            <div class="card-header">
+              <h3>Meeting Summary</h3>
+              <span id="meeting-id-badge" class="badge muted">No plan yet</span>
+            </div>
+
+            <div class="summary-block">
+              <p class="section-kicker">Summary</p>
+              <p id="meeting-summary" class="body-text empty">No summary yet.</p>
+            </div>
+
+            <div class="summary-block">
+              <p class="section-kicker">Decisions</p>
+              <pre id="meeting-decisions" class="pre-block empty">No decisions yet.</pre>
+            </div>
+
+            <div class="summary-block">
+              <p class="section-kicker">Priority Overview</p>
+              <p id="meeting-priorities-overview" class="body-text empty">No priorities yet.</p>
+            </div>
           </div>
-        </div>
+        </section>
+
+        <section class="board-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3>Priority Board</h3>
+              <span id="action-count" class="badge muted">0 actions</span>
+            </div>
+
+            <div class="priority-columns">
+              <div class="priority-column">
+                <div class="priority-header high">High</div>
+                <div id="priority-high" class="task-stack"></div>
+              </div>
+              <div class="priority-column">
+                <div class="priority-header medium">Medium</div>
+                <div id="priority-medium" class="task-stack"></div>
+              </div>
+              <div class="priority-column">
+                <div class="priority-header low">Low</div>
+                <div id="priority-low" class="task-stack"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Timeline</h3>
+              <span class="badge">Execution</span>
+            </div>
+
+            <div class="timeline-board">
+              <div class="timeline-lane">
+                <div class="timeline-header">Today</div>
+                <div id="bucket-today" class="task-stack"></div>
+              </div>
+              <div class="timeline-lane">
+                <div class="timeline-header">Tomorrow</div>
+                <div id="bucket-tomorrow" class="task-stack"></div>
+              </div>
+              <div class="timeline-lane">
+                <div class="timeline-header">This week</div>
+                <div id="bucket-this-week" class="task-stack"></div>
+              </div>
+              <div class="timeline-lane">
+                <div class="timeline-header">Next week</div>
+                <div id="bucket-next-week" class="task-stack"></div>
+              </div>
+              <div class="timeline-lane">
+                <div class="timeline-header">Later</div>
+                <div id="bucket-later" class="task-stack"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bottom-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3>Saved Meetings</h3>
+            </div>
+            <div id="meeting-list" class="meeting-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Screen Watcher Tasks</h3>
+            </div>
+            <div id="tasks" class="stack"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header activity-header" id="activity-header-toggle">
+              <h3>Recent Activity</h3>
+              <div class="activity-toolbar">
+                <label class="noise-toggle">
+                  <input id="hide-noise-toggle" type="checkbox" checked />
+                  <span>Hide OCR Noise</span>
+                </label>
+                <button id="clear-activities-btn" type="button" class="secondary-btn utility-btn">
+                  Clear All
+                </button>
+                <button id="activity-collapse-btn" type="button" class="secondary-btn utility-btn">
+                  Collapse
+                </button>
+              </div>
+            </div>
+            <p class="activity-subnote">Showing latest 20 items.</p>
+            <div id="activities-container">
+              <div id="activities" class="stack"></div>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
 
-    <template id="task-template">
-      <article class="card task-card">
+    <template id="planner-action-template">
+      <article class="planner-task-card">
+        <div class="planner-task-top">
+          <div>
+            <h4 class="planner-task-title"></h4>
+            <p class="planner-task-meta"></p>
+          </div>
+          <button class="planner-complete-btn" type="button">Mark done</button>
+        </div>
+        <p class="planner-task-body"></p>
+      </article>
+    </template>
+
+    <template id="meeting-list-template">
+      <article class="meeting-list-item">
         <div>
-          <h3 class="card-title"></h3>
+          <h4 class="meeting-list-title"></h4>
+          <p class="meeting-list-meta"></p>
+        </div>
+        <button class="meeting-open-btn" type="button">Open</button>
+      </article>
+    </template>
+
+    <template id="task-template">
+      <article class="card small-card">
+        <div>
+          <h4 class="card-title"></h4>
           <p class="card-meta"></p>
           <p class="card-body"></p>
         </div>
-        <button class="complete-btn" type="button">Complete</button>
       </article>
     </template>
 
     <template id="activity-template">
-      <article class="card">
-        <h3 class="card-title"></h3>
+      <article class="activity-card">
+        <button class="activity-delete-btn" type="button" aria-label="Delete activity">×</button>
+        <h4 class="card-title"></h4>
         <p class="card-meta"></p>
         <p class="card-body"></p>
       </article>
     </template>
 
-    <script src="/static/app.js?v=2"></script>
+    <script src="/static/app.js?v=5"></script>
   </body>
 </html>
