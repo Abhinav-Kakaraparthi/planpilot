@@ -5,10 +5,14 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from screenmind_todo.api.meeting_routes import meeting_router
 from screenmind_todo.api.routes import router
 from screenmind_todo.config import get_settings
 from screenmind_todo.db import Base, engine
 from screenmind_todo.services.watcher import ActivityWatcher
+
+# important import so SQLAlchemy sees the new tables
+from screenmind_todo import meeting_models  # noqa: F401
 
 settings = get_settings()
 watcher = ActivityWatcher(settings)
@@ -26,6 +30,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.include_router(router)
+app.include_router(meeting_router)
 
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
