@@ -441,7 +441,8 @@ textarea {
 .overview-grid,
 .planner-page-grid,
 .board-page-grid,
-.signals-grid {
+.signals-grid,
+.copilot-grid {
   display: grid;
   gap: 24px;
 }
@@ -454,13 +455,18 @@ textarea {
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
 }
 
+.copilot-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+}
+
 .board-page-grid,
 .signals-grid {
   grid-template-columns: 1fr;
 }
 
 .overview-column,
-.planner-side-column {
+.planner-side-column,
+.copilot-side-column {
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -596,6 +602,85 @@ textarea {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.68);
   border: 1px solid rgba(21, 32, 37, 0.07);
+}
+
+.copilot-primary-card {
+  background:
+    radial-gradient(circle at top right, rgba(191, 106, 61, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(255, 251, 247, 0.95) 0%, rgba(248, 242, 235, 0.88) 100%);
+}
+
+.copilot-stack,
+.copilot-point-list,
+.context-pack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.copilot-answer-card,
+.context-group {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(21, 32, 37, 0.07);
+}
+
+.copilot-answer-text {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.copilot-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-tile {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(21, 32, 37, 0.07);
+}
+
+.metric-label {
+  display: block;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.metric-value {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.copilot-point-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.copilot-point-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.copilot-point-body {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.6;
 }
 
 .priority-columns {
@@ -855,12 +940,14 @@ textarea {
   .hero-card,
   .overview-grid,
   .planner-page-grid,
+  .copilot-grid,
   .signals-grid,
   .board-page-grid {
     grid-template-columns: 1fr;
   }
 
   .hero-stats,
+  .copilot-metrics,
   .mini-columns,
   .priority-columns,
   .timeline-board {
@@ -887,6 +974,7 @@ textarea {
 
   .sidebar,
   .hero-stats,
+  .copilot-metrics,
   .mini-columns,
   .form-split,
   .priority-columns,

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PlanPilot</title>
-    <link rel="stylesheet" href="/static/styles.css?v=7" />
+    <link rel="stylesheet" href="/static/styles.css?v=8" />
   </head>
   <body>
     <div class="app-backdrop">
@@ -34,6 +34,7 @@
             <button class="nav-pill active" type="button" data-view-target="overview">Overview</button>
             <button class="nav-pill" type="button" data-view-target="planner">Planner</button>
             <button class="nav-pill" type="button" data-view-target="boards">Boards</button>
+            <button class="nav-pill" type="button" data-view-target="copilot">Copilot</button>
             <button class="nav-pill" type="button" data-view-target="signals">Signals</button>
           </div>
         </div>
@@ -162,9 +163,90 @@
                       <p class="section-kicker">Signal feed</p>
                       <h3>Latest activity</h3>
                     </div>
-                    <button class="secondary-btn utility-btn" type="button" data-view-target="signals">Open signals</button>
+                    <button class="secondary-btn utility-btn" type="button" data-shortcut-view="signals">Open signals</button>
                   </div>
-                  <div id="activity-preview" class="stack"></div>
+                    <div id="activity-preview" class="stack"></div>
+                </section>
+              </section>
+            </div>
+          </section>
+
+          <section id="view-copilot" class="view-panel">
+            <div class="view-header">
+              <div>
+                <p class="section-kicker">Copilot</p>
+                <h3 class="view-title">Answer suggestions from meeting and screen context</h3>
+              </div>
+              <button id="refresh-copilot-btn" class="secondary-btn utility-btn" type="button">Refresh answer</button>
+            </div>
+
+            <div class="copilot-grid">
+              <section class="card copilot-primary-card">
+                <div class="card-header">
+                  <div>
+                    <p class="section-kicker">Live answer</p>
+                    <h3>What should I say next?</h3>
+                  </div>
+                  <span id="copilot-speaker-badge" class="badge muted">No question yet</span>
+                </div>
+                <div class="copilot-stack">
+                  <div class="summary-block accent-block">
+                    <p class="section-kicker">Latest question</p>
+                    <p id="copilot-question" class="body-text empty">No meeting question detected yet.</p>
+                  </div>
+                  <div class="copilot-answer-card">
+                    <p class="section-kicker">Suggested response</p>
+                    <p id="copilot-answer" class="copilot-answer-text empty">Load a meeting plan to generate a response.</p>
+                  </div>
+                  <div class="copilot-metrics">
+                    <article class="metric-tile">
+                      <span class="metric-label">Meeting</span>
+                      <strong id="copilot-meeting-title" class="metric-value">None loaded</strong>
+                    </article>
+                    <article class="metric-tile">
+                      <span class="metric-label">Screen signal</span>
+                      <strong id="copilot-screen-signal" class="metric-value">No signal</strong>
+                    </article>
+                    <article class="metric-tile">
+                      <span class="metric-label">Recommended tone</span>
+                      <strong id="copilot-tone" class="metric-value">Concise</strong>
+                    </article>
+                  </div>
+                </div>
+              </section>
+
+              <section class="copilot-side-column">
+                <section class="card">
+                  <div class="card-header">
+                    <div>
+                      <p class="section-kicker">Talking points</p>
+                      <h3>Key points to mention</h3>
+                    </div>
+                  </div>
+                  <div id="copilot-points" class="copilot-point-list"></div>
+                </section>
+
+                <section class="card">
+                  <div class="card-header">
+                    <div>
+                      <p class="section-kicker">Context pack</p>
+                      <h3>What the answer is using</h3>
+                    </div>
+                  </div>
+                  <div class="context-pack">
+                    <div class="context-group">
+                      <p class="section-kicker">Current screen</p>
+                      <p id="copilot-screen-context" class="body-text empty">No recent activity loaded.</p>
+                    </div>
+                    <div class="context-group">
+                      <p class="section-kicker">Open tasks</p>
+                      <p id="copilot-task-context" class="body-text empty">No watcher tasks available.</p>
+                    </div>
+                    <div class="context-group">
+                      <p class="section-kicker">Suggested follow-up</p>
+                      <p id="copilot-follow-up" class="body-text empty">No follow-up yet.</p>
+                    </div>
+                  </div>
                 </section>
               </section>
             </div>
@@ -426,6 +508,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=7"></script>
+    <script src="/static/app.js?v=8"></script>
   </body>
 </html>

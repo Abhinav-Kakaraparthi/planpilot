@@ -8,6 +8,7 @@ const activitiesEl = document.querySelector("#activities");
 const activityPreviewEl = document.querySelector("#activity-preview");
 const taskTemplate = document.querySelector("#task-template");
 const activityTemplate = document.querySelector("#activity-template");
+const refreshCopilotBtn = document.querySelector("#refresh-copilot-btn");
 
 const clearActivitiesBtn = document.querySelector("#clear-activities-btn");
 const hideNoiseToggle = document.querySelector("#hide-noise-toggle");
@@ -52,10 +53,23 @@ const statMeetingsEl = document.querySelector("#stat-meetings");
 const statActivitiesEl = document.querySelector("#stat-activities");
 const statActivitiesMetaEl = document.querySelector("#stat-activities-meta");
 
-const navButtons = [...document.querySelectorAll("[data-view-target]")];
+const copilotSpeakerBadgeEl = document.querySelector("#copilot-speaker-badge");
+const copilotQuestionEl = document.querySelector("#copilot-question");
+const copilotAnswerEl = document.querySelector("#copilot-answer");
+const copilotMeetingTitleEl = document.querySelector("#copilot-meeting-title");
+const copilotScreenSignalEl = document.querySelector("#copilot-screen-signal");
+const copilotToneEl = document.querySelector("#copilot-tone");
+const copilotPointsEl = document.querySelector("#copilot-points");
+const copilotScreenContextEl = document.querySelector("#copilot-screen-context");
+const copilotTaskContextEl = document.querySelector("#copilot-task-context");
+const copilotFollowUpEl = document.querySelector("#copilot-follow-up");
+
+const navButtons = [...document.querySelectorAll(".nav-pill[data-view-target]")];
+const shortcutViewButtons = [...document.querySelectorAll("[data-shortcut-view]")];
 const viewPanels = [...document.querySelectorAll(".view-panel")];
 
 let activeMeetingId = null;
+let activeMeetingDetails = null;
 let hideNoise = true;
 let activityCollapsed = false;
 let latestDashboard = { tasks: [], activities: [] };
@@ -91,6 +105,192 @@ function sentenceCase(value) {
 
 function setEmptyState(container, message) {
   container.innerHTML = `<p class="empty">${message}</p>`;
+}
+
+function truncateText(value, maxLength = 160) {
+  if (!value) return "";
+  return value.length > maxLength ? `${value.slice(0, maxLength).trim()}...` : value;
+}
+
+function extractLatestQuestion(transcript) {
+  if (!transcript) {
+    return null;
+  }
+
+  const lines = transcript
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+    if (!line.includes("?")) {
+      continue;
+    }
+
+    const speakerMatch = line.match(/^([A-Za-z][A-Za-z .'-]{1,40}):\s*(.+)$/);
+    if (speakerMatch) {
+      return {
+        speaker: speakerMatch[1].trim(),
+        question: speakerMatch[2].trim()
+      };
+    }
+
+    return {
+      speaker: "Meeting participant",
+      question: line
+    };
+  }
+
+  const sentences = transcript
+    .split(/(?<=[.?!])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  const fallbackQuestion = [...sentences].reverse().find((sentence) => sentence.includes("?"));
+  if (!fallbackQuestion) {
+    return null;
+  }
+
+  return {
+    speaker: "Meeting participant",
+    question: fallbackQuestion
+  };
+}
+
+function summarizeScreenSignal() {
+  const latestActivity = latestDashboard.activities[0];
+  if (!latestActivity) {
+    return "No recent activity captured.";
+  }
+
+  return truncateText(
+    latestActivity.inferred_summary || latestActivity.window_title || latestActivity.ocr_text || "Screen activity",
+    140
+  );
+}
+
+function summarizeTaskSignal() {
+  const openTasks = latestDashboard.tasks.filter((task) => (task.status || "").toLowerCase() !== "done");
+  if (!openTasks.length) {
+    return "No open watcher tasks available.";
+  }
+
+  return openTasks
+    .slice(0, 2)
+    .map((task) => task.title)
+    .join(" | ");
+}
+
+function buildCopilotResponse() {
+  if (!activeMeetingDetails) {
+    return {
+      speaker: "No meeting loaded",
+      question: "No meeting question detected yet.",
+      answer: "Open a saved meeting or generate a meeting plan to get a suggested answer.",
+      meetingTitle: "None loaded",
+      screenSignal: summarizeScreenSignal(),
+      tone: "Concise",
+      points: [],
+      screenContext: summarizeScreenSignal(),
+      taskContext: summarizeTaskSignal(),
+      followUp: "Load a meeting plan to generate the next-response guidance."
+    };
+  }
+
+  const latestQuestion = extractLatestQuestion(activeMeetingDetails.transcript);
+  const openActions = (activeMeetingDetails.actions || []).filter(
+    (action) => (action.status || "").toLowerCase() !== "done"
+  );
+  const nextAction = openActions[0];
+  const screenSignal = summarizeScreenSignal();
+  const taskSignal = summarizeTaskSignal();
+  const meetingTitle = activeMeetingDetails.title || "Untitled meeting";
+  const speaker = latestQuestion?.speaker || "Meeting participant";
+  const question = latestQuestion?.question || "No explicit question detected in the transcript.";
+  const tone = nextAction?.priority?.toLowerCase() === "high" ? "Direct" : "Calm";
+
+  const answerParts = [];
+  if (latestQuestion) {
+    answerParts.push(`I would answer ${speaker} by grounding the response in the current plan for ${meetingTitle}.`);
+  } else {
+    answerParts.push(`I would give a short progress update tied to the plan for ${meetingTitle}.`);
+  }
+  if (nextAction) {
+    answerParts.push(
+      `The clearest next step is ${nextAction.title.toLowerCase()}, which is currently ${nextAction.timeline_bucket.toLowerCase()} and marked ${nextAction.priority.toLowerCase()} priority.`
+    );
+  }
+  if (screenSignal && screenSignal !== "No recent activity captured.") {
+    answerParts.push(`Your screen suggests the immediate context is ${screenSignal.toLowerCase()}.`);
+  }
+  answerParts.push("Close by confirming the next owner, timing, and what decision you need from the room.");
+
+  const points = [
+    {
+      title: "Anchor on the plan",
+      body: activeMeetingDetails.summary || "Use the meeting summary to restate the goal before answering."
+    },
+    nextAction
+      ? {
+          title: "Lead with the next action",
+          body: `${nextAction.title} is the strongest concrete item to mention next.`
+        }
+      : null,
+    {
+      title: "Use current screen context",
+      body: screenSignal
+    },
+    {
+      title: "Reference live workload",
+      body: taskSignal
+    }
+  ].filter(Boolean);
+
+  return {
+    speaker,
+    question,
+    answer: answerParts.join(" "),
+    meetingTitle,
+    screenSignal,
+    tone,
+    points,
+    screenContext: screenSignal,
+    taskContext: taskSignal,
+    followUp: nextAction
+      ? `Finish by asking for confirmation on ${nextAction.title.toLowerCase()} and whether the due timing still holds.`
+      : "Ask whether the room wants a concrete next action or a decision summary."
+  };
+}
+
+function renderCopilot() {
+  const data = buildCopilotResponse();
+
+  copilotSpeakerBadgeEl.textContent = data.speaker;
+  copilotQuestionEl.textContent = data.question;
+  copilotAnswerEl.textContent = data.answer;
+  copilotMeetingTitleEl.textContent = data.meetingTitle;
+  copilotScreenSignalEl.textContent = data.screenSignal;
+  copilotToneEl.textContent = data.tone;
+  copilotScreenContextEl.textContent = data.screenContext;
+  copilotTaskContextEl.textContent = data.taskContext;
+  copilotFollowUpEl.textContent = data.followUp;
+
+  copilotPointsEl.innerHTML = "";
+  if (!data.points.length) {
+    setEmptyState(copilotPointsEl, "No talking points yet.");
+    return;
+  }
+
+  data.points.forEach((point) => {
+    const card = document.createElement("article");
+    card.className = "copilot-point-card";
+    card.innerHTML = `
+      <h4 class="copilot-point-title">${point.title}</h4>
+      <p class="copilot-point-body">${point.body}</p>
+    `;
+    copilotPointsEl.appendChild(card);
+  });
 }
 
 function setActivityCollapsed(collapsed) {
@@ -157,6 +357,7 @@ async function fetchDashboard() {
   renderScreenTasks(latestDashboard.tasks);
   renderActivities(latestDashboard.activities);
   renderActivityPreview(latestDashboard.activities);
+  renderCopilot();
 
   if (!latestDashboard.activities.length) {
     setActivityCollapsed(true);
@@ -387,6 +588,7 @@ function ensureLaneEmptyStates(actions) {
 
 function renderMeetingDetails(meeting) {
   activeMeetingId = meeting.id;
+  activeMeetingDetails = meeting;
   meetingIdBadgeEl.textContent = `Meeting #${meeting.id}`;
   meetingSummaryEl.textContent = meeting.summary || "No summary available.";
   meetingDecisionsEl.textContent = meeting.decisions || "No decisions available.";
@@ -418,6 +620,7 @@ function renderMeetingDetails(meeting) {
   });
 
   ensureLaneEmptyStates(actions);
+  renderCopilot();
 }
 
 function getPriorityContainer(priority) {
@@ -547,9 +750,20 @@ navButtons.forEach((button) => {
   });
 });
 
+shortcutViewButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveView(button.dataset.shortcutView);
+  });
+});
+
+refreshCopilotBtn.addEventListener("click", () => {
+  renderCopilot();
+});
+
 async function initialize() {
   setActivityCollapsed(false);
   setActiveView(activeView);
+  renderCopilot();
   await Promise.all([fetchWatcherStatus(), fetchDashboard(), fetchMeetings()]);
 }
 
