@@ -1,6 +1,7 @@
 const watcherStatusEl = document.querySelector("#watcher-status");
 const watcherToggleBtn = document.querySelector("#watcher-toggle");
 const scanNowBtn = document.querySelector("#scan-now");
+const heroStatusPillEl = document.querySelector("#hero-status-pill");
 
 const tasksEl = document.querySelector("#tasks");
 const activitiesEl = document.querySelector("#activities");
@@ -40,9 +41,16 @@ const activityContainer = document.querySelector("#activities-container");
 const activityCollapseBtn = document.querySelector("#activity-collapse-btn");
 const activityHeaderToggle = document.querySelector("#activity-header-toggle");
 
+const statOpenTasksEl = document.querySelector("#stat-open-tasks");
+const statMeetingsEl = document.querySelector("#stat-meetings");
+const statActivitiesEl = document.querySelector("#stat-activities");
+const statActivitiesMetaEl = document.querySelector("#stat-activities-meta");
+
 let activeMeetingId = null;
 let hideNoise = true;
 let activityCollapsed = false;
+let latestDashboard = { tasks: [], activities: [] };
+let latestMeetings = [];
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -50,6 +58,25 @@ async function fetchJson(url, options = {}) {
     throw new Error(`Request failed: ${response.status} ${url}`);
   }
   return response.json();
+}
+
+function formatDateTime(value) {
+  if (!value) return "No timestamp";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function formatDate(value) {
+  if (!value) return "No target date";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function sentenceCase(value) {
+  if (!value) return "Unknown";
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function setActivityCollapsed(collapsed) {
@@ -67,25 +94,55 @@ function toggleActivityPanel() {
   setActivityCollapsed(!activityCollapsed);
 }
 
+function updateDashboardStats() {
+  const taskCount = latestDashboard.tasks.length;
+  const activityCount = latestDashboard.activities.length;
+  const meetingCount = latestMeetings.length;
+
+  if (statOpenTasksEl) {
+    statOpenTasksEl.textContent = `${taskCount}`;
+  }
+
+  if (statMeetingsEl) {
+    statMeetingsEl.textContent = `${meetingCount}`;
+  }
+
+  if (statActivitiesEl) {
+    statActivitiesEl.textContent = `${activityCount}`;
+  }
+
+  if (statActivitiesMetaEl) {
+    statActivitiesMetaEl.textContent = hideNoise ? "Noise filtered feed" : "Showing all captured items";
+  }
+}
+
+function setEmptyState(container, message) {
+  container.innerHTML = `<p class="empty">${message}</p>`;
+}
+
 async function fetchWatcherStatus() {
   const data = await fetchJson("/api/watcher/status");
+  const enabled = Boolean(data.enabled);
 
-  if (data.enabled) {
-    watcherStatusEl.textContent = "Watcher: ON";
-    watcherToggleBtn.textContent = "Stop Watching";
-    watcherToggleBtn.dataset.mode = "stop";
-  } else {
-    watcherStatusEl.textContent = "Watcher: PAUSED";
-    watcherToggleBtn.textContent = "Start Watching";
-    watcherToggleBtn.dataset.mode = "start";
+  watcherStatusEl.textContent = enabled ? "Watcher: ON" : "Watcher: PAUSED";
+  watcherToggleBtn.textContent = enabled ? "Stop watcher" : "Start watcher";
+  watcherToggleBtn.dataset.mode = enabled ? "stop" : "start";
+
+  if (heroStatusPillEl) {
+    heroStatusPillEl.textContent = enabled ? "Live" : "Paused";
+    heroStatusPillEl.classList.toggle("live", enabled);
+    heroStatusPillEl.classList.toggle("paused", !enabled);
   }
 }
 
 async function fetchDashboard() {
-  const query = hideNoise ? "false" : "true";
-  const data = await fetchJson(`/api/dashboard?include_noise=${query}&activity_limit=20`);
+  const includeNoise = hideNoise ? "false" : "true";
+  const data = await fetchJson(`/api/dashboard?include_noise=${includeNoise}&activity_limit=20`);
   const tasks = data.tasks || [];
   const activities = data.activities || [];
+
+  latestDashboard = { tasks, activities };
+  updateDashboardStats();
 
   renderScreenTasks(tasks);
   renderActivities(activities);
@@ -99,7 +156,7 @@ function renderScreenTasks(tasks) {
   tasksEl.innerHTML = "";
 
   if (!tasks.length) {
-    tasksEl.innerHTML = `<p class="empty">No screen watcher tasks yet.</p>`;
+    setEmptyState(tasksEl, "No screen watcher tasks yet.");
     return;
   }
 
@@ -107,9 +164,14 @@ function renderScreenTasks(tasks) {
     const node = taskTemplate.content.cloneNode(true);
     node.querySelector(".card-title").textContent = task.title;
     node.querySelector(".card-meta").textContent =
-      `${task.status.toUpperCase()} • confidence ${task.confidence}%`;
-    node.querySelector(".card-body").textContent =
-      task.reason || "No reason recorded.";
+      `${task.source_window || "Unknown source"} • confidence ${task.confidence}%`;
+    node.querySelector(".card-body").textContent = task.reason || "No reason recorded.";
+
+    const statusPill = node.querySelector(".task-status-pill");
+    const normalizedStatus = (task.status || "open").toLowerCase();
+    statusPill.textContent = sentenceCase(normalizedStatus);
+    statusPill.classList.add(normalizedStatus === "done" ? "done" : "open");
+
     tasksEl.appendChild(node);
   });
 }
@@ -118,7 +180,7 @@ function renderActivities(activities) {
   activitiesEl.innerHTML = "";
 
   if (!activities.length) {
-    activitiesEl.innerHTML = `<p class="empty">No activity captured yet.</p>`;
+    setEmptyState(activitiesEl, "No activity captured yet.");
     return;
   }
 
@@ -127,9 +189,8 @@ function renderActivities(activities) {
     node.querySelector(".card-title").textContent =
       activity.inferred_summary || activity.window_title || "Screen activity";
     node.querySelector(".card-meta").textContent =
-      `${activity.app_name || "unknown app"} • confidence ${activity.confidence ?? 0}%`;
-    node.querySelector(".card-body").textContent =
-      activity.ocr_text || "No OCR text stored.";
+      `${activity.app_name || "Unknown app"} • confidence ${activity.confidence ?? 0}% • ${formatDateTime(activity.created_at)}`;
+    node.querySelector(".card-body").textContent = activity.ocr_text || "No OCR text stored.";
 
     const deleteBtn = node.querySelector(".activity-delete-btn");
     deleteBtn.addEventListener("click", async () => {
@@ -148,11 +209,13 @@ function renderActivities(activities) {
 
 async function fetchMeetings() {
   const meetings = await fetchJson("/api/meetings");
-  renderMeetingList(meetings || []);
+  latestMeetings = meetings || [];
+  updateDashboardStats();
+  renderMeetingList(latestMeetings);
 
-  if (!activeMeetingId && meetings.length > 0) {
-    const details = await fetchJson(`/api/meetings/${meetings[0].id}`);
-    activeMeetingId = meetings[0].id;
+  if (!activeMeetingId && latestMeetings.length > 0) {
+    const details = await fetchJson(`/api/meetings/${latestMeetings[0].id}`);
+    activeMeetingId = latestMeetings[0].id;
     renderMeetingDetails(details);
   }
 }
@@ -161,7 +224,7 @@ function renderMeetingList(meetings) {
   meetingListEl.innerHTML = "";
 
   if (!meetings.length) {
-    meetingListEl.innerHTML = `<p class="empty">No meeting plans created yet.</p>`;
+    setEmptyState(meetingListEl, "No meeting plans created yet.");
     return;
   }
 
@@ -169,7 +232,7 @@ function renderMeetingList(meetings) {
     const node = meetingListTemplate.content.cloneNode(true);
     node.querySelector(".meeting-list-title").textContent = meeting.title;
     node.querySelector(".meeting-list-meta").textContent =
-      `${meeting.target_end_date || "No target date"} • ${new Date(meeting.created_at).toLocaleString()}`;
+      `${formatDate(meeting.target_end_date)} • ${formatDateTime(meeting.created_at)}`;
 
     node.querySelector(".meeting-open-btn").addEventListener("click", async () => {
       const details = await fetchJson(`/api/meetings/${meeting.id}`);
@@ -229,6 +292,35 @@ function createPlannerActionCard(action, meetingId) {
   return card;
 }
 
+function ensureLaneEmptyStates(actions) {
+  if (!actions.length) {
+    setEmptyState(priorityHighEl, "No actions.");
+    setEmptyState(priorityMediumEl, "No actions.");
+    setEmptyState(priorityLowEl, "No actions.");
+    setEmptyState(bucketTodayEl, "No items.");
+    setEmptyState(bucketTomorrowEl, "No items.");
+    setEmptyState(bucketThisWeekEl, "No items.");
+    setEmptyState(bucketNextWeekEl, "No items.");
+    setEmptyState(bucketLaterEl, "No items.");
+    return;
+  }
+
+  [
+    priorityHighEl,
+    priorityMediumEl,
+    priorityLowEl,
+    bucketTodayEl,
+    bucketTomorrowEl,
+    bucketThisWeekEl,
+    bucketNextWeekEl,
+    bucketLaterEl,
+  ].forEach((container) => {
+    if (!container.children.length) {
+      setEmptyState(container, "No items.");
+    }
+  });
+}
+
 function renderMeetingDetails(meeting) {
   activeMeetingId = meeting.id;
   meetingIdBadgeEl.textContent = `Meeting #${meeting.id}`;
@@ -242,12 +334,6 @@ function renderMeetingDetails(meeting) {
   const actions = (meeting.actions || []).slice().sort((a, b) => a.step_order - b.step_order);
   actionCountEl.textContent = `${actions.length} actions`;
 
-  if (!actions.length) {
-    priorityHighEl.innerHTML = `<p class="empty">No actions.</p>`;
-    bucketThisWeekEl.innerHTML = `<p class="empty">No timeline items.</p>`;
-    return;
-  }
-
   actions.forEach((action) => {
     const priorityCard = createPlannerActionCard(action, meeting.id);
     const timelineCard = createPlannerActionCard(action, meeting.id);
@@ -258,12 +344,14 @@ function renderMeetingDetails(meeting) {
     if (priorityTarget) priorityTarget.appendChild(priorityCard);
     if (timelineTarget) timelineTarget.appendChild(timelineCard);
   });
+
+  ensureLaneEmptyStates(actions);
 }
 
 function getPriorityContainer(priority) {
-  const p = (priority || "").toLowerCase();
-  if (p === "high") return priorityHighEl;
-  if (p === "medium") return priorityMediumEl;
+  const normalized = (priority || "").toLowerCase();
+  if (normalized === "high") return priorityHighEl;
+  if (normalized === "medium") return priorityMediumEl;
   return priorityLowEl;
 }
 
@@ -307,7 +395,7 @@ meetingForm.addEventListener("submit", async (event) => {
     alert("Failed to generate meeting plan.");
   } finally {
     generatePlanBtn.disabled = false;
-    generatePlanBtn.textContent = "Generate Plan";
+    generatePlanBtn.textContent = "Generate plan";
   }
 });
 
@@ -322,7 +410,7 @@ scanNowBtn.addEventListener("click", async () => {
     console.error("Scan failed:", error);
   } finally {
     scanNowBtn.disabled = false;
-    scanNowBtn.textContent = "Scan Now";
+    scanNowBtn.textContent = "Scan now";
   }
 });
 
@@ -352,7 +440,7 @@ if (clearActivitiesBtn) {
       alert("Failed to clear activities.");
     } finally {
       clearActivitiesBtn.disabled = false;
-      clearActivitiesBtn.textContent = "Clear All";
+      clearActivitiesBtn.textContent = "Clear all";
     }
   });
 }
@@ -382,11 +470,8 @@ if (activityHeaderToggle) {
 }
 
 async function initialize() {
-  await Promise.all([
-    fetchWatcherStatus(),
-    fetchDashboard(),
-    fetchMeetings(),
-  ]);
+  setActivityCollapsed(false);
+  await Promise.all([fetchWatcherStatus(), fetchDashboard(), fetchMeetings()]);
 }
 
 initialize();
