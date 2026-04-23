@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PlanPilot</title>
-    <link rel="stylesheet" href="/static/styles.css?v=6" />
+    <link rel="stylesheet" href="/static/styles.css?v=7" />
   </head>
   <body>
     <div class="app-backdrop">
@@ -24,16 +24,18 @@
             </div>
           </div>
           <p class="brand-copy">
-            Turn meetings, screen context, and captured work signals into an execution plan your team can actually follow.
+            A local execution assistant that turns meetings, OCR, and work signals into a plan you can actually act on.
           </p>
         </div>
 
         <div class="sidebar-panel nav-panel">
           <p class="sidebar-label">Workspace</p>
-          <div class="nav-pill active">Planner cockpit</div>
-          <div class="nav-pill">Meeting memory</div>
-          <div class="nav-pill">Execution board</div>
-          <div class="nav-pill">Signal feed</div>
+          <div class="nav-stack">
+            <button class="nav-pill active" type="button" data-view-target="overview">Overview</button>
+            <button class="nav-pill" type="button" data-view-target="planner">Planner</button>
+            <button class="nav-pill" type="button" data-view-target="boards">Boards</button>
+            <button class="nav-pill" type="button" data-view-target="signals">Signals</button>
+          </div>
         </div>
 
         <div class="sidebar-panel watcher-panel">
@@ -43,7 +45,7 @@
           </div>
           <p id="watcher-status" class="watcher-status">Watcher: ON</p>
           <p class="sidebar-note">
-            Keep the passive capture loop under control while the planner stays focused on work that matters.
+            Manage capture without letting passive OCR dominate the product. Session mode and transcript-first flow are next.
           </p>
           <div class="sidebar-actions">
             <button id="scan-now" type="button">Scan now</button>
@@ -52,12 +54,12 @@
         </div>
 
         <div class="sidebar-panel signal-panel">
-          <p class="sidebar-label">Product direction</p>
+          <p class="sidebar-label">Next product moves</p>
           <ul class="signal-list">
-            <li>Meeting-first planning</li>
-            <li>Cleaner action hierarchy</li>
-            <li>Lower OCR noise in feed</li>
-            <li>Session-based assistant next</li>
+            <li>Editable tasks</li>
+            <li>Session-based assistant flow</li>
+            <li>Transcript-first ingestion</li>
+            <li>Floating assistant surface</li>
           </ul>
         </div>
       </aside>
@@ -65,10 +67,10 @@
       <section class="main-panel">
         <header class="hero-card">
           <div class="hero-copy">
-            <p class="eyebrow">Planner dashboard</p>
-            <h2 class="page-title">Execution command for meetings, tasks, and live work context.</h2>
+            <p class="eyebrow">PlanPilot command layer</p>
+            <h2 class="page-title">From raw context to a clean execution system.</h2>
             <p class="hero-description">
-              Capture decisions, turn them into prioritized action, and keep operational noise away from the plan.
+              Split planning, boards, and signal review into focused views so the product feels controlled, readable, and fast.
             </p>
           </div>
 
@@ -86,190 +88,283 @@
             <article class="stat-card">
               <span class="stat-label">Activity feed</span>
               <strong id="stat-activities" class="stat-value">0</strong>
-              <span id="stat-activities-meta" class="stat-meta">Latest captured events</span>
+              <span id="stat-activities-meta" class="stat-meta">Noise filtered feed</span>
             </article>
           </div>
         </header>
 
-        <section class="workspace-grid">
-          <div class="workspace-column">
-            <section class="card composer-card">
-              <div class="card-header">
-                <div>
-                  <p class="section-kicker">Meeting planner</p>
-                  <h3>Create a structured execution plan</h3>
-                </div>
-                <span class="badge">AI assisted</span>
-              </div>
-
-              <form id="meeting-form" class="meeting-form">
-                <div class="form-split">
-                  <label class="field">
-                    <span>Meeting title</span>
-                    <input id="meeting-title" type="text" placeholder="Weekly project sync" required />
-                  </label>
-
-                  <label class="field">
-                    <span>Target end date</span>
-                    <input id="meeting-target-date" type="date" />
-                  </label>
-                </div>
-
-                <label class="field">
-                  <span>Transcript</span>
-                  <textarea
-                    id="meeting-transcript"
-                    rows="10"
-                    placeholder="Paste meeting transcript here..."
-                    required
-                  ></textarea>
-                </label>
-
-                <div class="form-actions">
-                  <button id="generate-plan-btn" type="submit">Generate plan</button>
-                </div>
-              </form>
-            </section>
-
-            <section class="card">
-              <div class="card-header">
-                <div>
-                  <p class="section-kicker">Planner memory</p>
-                  <h3>Saved meetings</h3>
-                </div>
-                <span class="badge muted">History</span>
-              </div>
-              <div id="meeting-list" class="meeting-list"></div>
-            </section>
-          </div>
-
-          <div class="workspace-column">
-            <section class="card summary-card">
-              <div class="card-header">
-                <div>
-                  <p class="section-kicker">Current plan</p>
-                  <h3>Meeting summary</h3>
-                </div>
-                <span id="meeting-id-badge" class="badge muted">No plan yet</span>
-              </div>
-
-              <div class="summary-grid">
-                <div class="summary-block accent-block">
-                  <p class="section-kicker">Summary</p>
-                  <p id="meeting-summary" class="body-text empty">No summary yet.</p>
-                </div>
-
-                <div class="summary-block">
-                  <p class="section-kicker">Decisions</p>
-                  <pre id="meeting-decisions" class="pre-block empty">No decisions yet.</pre>
-                </div>
-
-                <div class="summary-block">
-                  <p class="section-kicker">Priority overview</p>
-                  <p id="meeting-priorities-overview" class="body-text empty">No priorities yet.</p>
-                </div>
-              </div>
-            </section>
-          </div>
-        </section>
-
-        <section class="board-grid">
-          <section class="card">
-            <div class="card-header">
+        <div class="view-switcher">
+          <section id="view-overview" class="view-panel active">
+            <div class="view-header">
               <div>
-                <p class="section-kicker">Action stack</p>
-                <h3>Priority board</h3>
+                <p class="section-kicker">Overview</p>
+                <h3 class="view-title">Current execution picture</h3>
               </div>
-              <span id="action-count" class="badge muted">0 actions</span>
+              <span class="badge">Cockpit</span>
             </div>
 
-            <div class="priority-columns">
-              <div class="priority-column high">
-                <div class="priority-header">High</div>
-                <div id="priority-high" class="task-stack"></div>
-              </div>
-              <div class="priority-column medium">
-                <div class="priority-header">Medium</div>
-                <div id="priority-medium" class="task-stack"></div>
-              </div>
-              <div class="priority-column low">
-                <div class="priority-header">Low</div>
-                <div id="priority-low" class="task-stack"></div>
-              </div>
+            <div class="overview-grid">
+              <section class="card overview-card summary-focus">
+                <div class="card-header">
+                  <div>
+                    <p class="section-kicker">Current plan</p>
+                    <h3>Meeting summary</h3>
+                  </div>
+                  <span id="meeting-id-badge" class="badge muted">No plan yet</span>
+                </div>
+
+                <div class="summary-grid">
+                  <div class="summary-block accent-block">
+                    <p class="section-kicker">Summary</p>
+                    <p id="meeting-summary" class="body-text empty">No summary yet.</p>
+                  </div>
+                  <div class="summary-split">
+                    <div class="summary-block">
+                      <p class="section-kicker">Decisions</p>
+                      <pre id="meeting-decisions" class="pre-block empty">No decisions yet.</pre>
+                    </div>
+                    <div class="summary-block">
+                      <p class="section-kicker">Priority overview</p>
+                      <p id="meeting-priorities-overview" class="body-text empty">No priorities yet.</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="overview-column">
+                <section class="card focus-card">
+                  <div class="card-header">
+                    <div>
+                      <p class="section-kicker">Execution</p>
+                      <h3>Priority snapshot</h3>
+                    </div>
+                    <span id="action-count" class="badge muted">0 actions</span>
+                  </div>
+                  <div class="mini-columns">
+                    <div class="mini-column">
+                      <span class="mini-column-label high">High</span>
+                      <div id="priority-high-preview" class="task-stack compact-stack"></div>
+                    </div>
+                    <div class="mini-column">
+                      <span class="mini-column-label medium">Medium</span>
+                      <div id="priority-medium-preview" class="task-stack compact-stack"></div>
+                    </div>
+                    <div class="mini-column">
+                      <span class="mini-column-label low">Low</span>
+                      <div id="priority-low-preview" class="task-stack compact-stack"></div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="card focus-card">
+                  <div class="card-header">
+                    <div>
+                      <p class="section-kicker">Signal feed</p>
+                      <h3>Latest activity</h3>
+                    </div>
+                    <button class="secondary-btn utility-btn" type="button" data-view-target="signals">Open signals</button>
+                  </div>
+                  <div id="activity-preview" class="stack"></div>
+                </section>
+              </section>
             </div>
           </section>
 
-          <section class="card">
-            <div class="card-header">
+          <section id="view-planner" class="view-panel">
+            <div class="view-header">
               <div>
-                <p class="section-kicker">Execution pacing</p>
-                <h3>Timeline board</h3>
+                <p class="section-kicker">Planner</p>
+                <h3 class="view-title">Build and review meeting plans</h3>
+              </div>
+              <span class="badge">AI assisted</span>
+            </div>
+
+            <div class="planner-page-grid">
+              <section class="card composer-card">
+                <div class="card-header">
+                  <div>
+                    <p class="section-kicker">Meeting planner</p>
+                    <h3>Create a structured execution plan</h3>
+                  </div>
+                  <span class="badge">Transcript in</span>
+                </div>
+
+                <form id="meeting-form" class="meeting-form">
+                  <div class="form-split">
+                    <label class="field">
+                      <span>Meeting title</span>
+                      <input id="meeting-title" type="text" placeholder="Weekly project sync" required />
+                    </label>
+
+                    <label class="field">
+                      <span>Target end date</span>
+                      <input id="meeting-target-date" type="date" />
+                    </label>
+                  </div>
+
+                  <label class="field">
+                    <span>Transcript</span>
+                    <textarea
+                      id="meeting-transcript"
+                      rows="12"
+                      placeholder="Paste meeting transcript here..."
+                      required
+                    ></textarea>
+                  </label>
+
+                  <div class="form-actions">
+                    <button id="generate-plan-btn" type="submit">Generate plan</button>
+                  </div>
+                </form>
+              </section>
+
+              <section class="planner-side-column">
+                <section class="card">
+                  <div class="card-header">
+                    <div>
+                      <p class="section-kicker">Planner memory</p>
+                      <h3>Saved meetings</h3>
+                    </div>
+                    <span class="badge muted">History</span>
+                  </div>
+                  <div id="meeting-list" class="meeting-list"></div>
+                </section>
+
+                <section class="card">
+                  <div class="card-header">
+                    <div>
+                      <p class="section-kicker">Upcoming flow</p>
+                      <h3>Next architecture shift</h3>
+                    </div>
+                  </div>
+                  <div class="strategy-card">
+                    <p>Move from continuous watcher output to session-based assistance with transcript-first planning.</p>
+                    <ul class="strategy-list">
+                      <li>Start and stop focused sessions</li>
+                      <li>Trigger OCR on demand, not constantly</li>
+                      <li>Expose quick assistant actions in a floating UI</li>
+                    </ul>
+                  </div>
+                </section>
+              </section>
+            </div>
+          </section>
+
+          <section id="view-boards" class="view-panel">
+            <div class="view-header">
+              <div>
+                <p class="section-kicker">Boards</p>
+                <h3 class="view-title">Priority and timeline boards</h3>
               </div>
               <span class="badge">Execution map</span>
             </div>
 
-            <div class="timeline-board">
-              <div class="timeline-lane">
-                <div class="timeline-header">Today</div>
-                <div id="bucket-today" class="task-stack"></div>
-              </div>
-              <div class="timeline-lane">
-                <div class="timeline-header">Tomorrow</div>
-                <div id="bucket-tomorrow" class="task-stack"></div>
-              </div>
-              <div class="timeline-lane">
-                <div class="timeline-header">This week</div>
-                <div id="bucket-this-week" class="task-stack"></div>
-              </div>
-              <div class="timeline-lane">
-                <div class="timeline-header">Next week</div>
-                <div id="bucket-next-week" class="task-stack"></div>
-              </div>
-              <div class="timeline-lane">
-                <div class="timeline-header">Later</div>
-                <div id="bucket-later" class="task-stack"></div>
-              </div>
-            </div>
-          </section>
-        </section>
+            <div class="board-page-grid">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="section-kicker">Action stack</p>
+                    <h3>Priority board</h3>
+                  </div>
+                </div>
 
-        <section class="ops-grid">
-          <section class="card">
-            <div class="card-header">
-              <div>
-                <p class="section-kicker">Watcher output</p>
-                <h3>Screen watcher tasks</h3>
-              </div>
-              <span class="badge muted">Auto-generated</span>
+                <div class="priority-columns">
+                  <div class="priority-column high">
+                    <div class="priority-header">High</div>
+                    <div id="priority-high" class="task-stack board-stack"></div>
+                  </div>
+                  <div class="priority-column medium">
+                    <div class="priority-header">Medium</div>
+                    <div id="priority-medium" class="task-stack board-stack"></div>
+                  </div>
+                  <div class="priority-column low">
+                    <div class="priority-header">Low</div>
+                    <div id="priority-low" class="task-stack board-stack"></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="section-kicker">Execution pacing</p>
+                    <h3>Timeline board</h3>
+                  </div>
+                </div>
+
+                <div class="timeline-board">
+                  <div class="timeline-lane">
+                    <div class="timeline-header">Today</div>
+                    <div id="bucket-today" class="task-stack board-stack"></div>
+                  </div>
+                  <div class="timeline-lane">
+                    <div class="timeline-header">Tomorrow</div>
+                    <div id="bucket-tomorrow" class="task-stack board-stack"></div>
+                  </div>
+                  <div class="timeline-lane">
+                    <div class="timeline-header">This week</div>
+                    <div id="bucket-this-week" class="task-stack board-stack"></div>
+                  </div>
+                  <div class="timeline-lane">
+                    <div class="timeline-header">Next week</div>
+                    <div id="bucket-next-week" class="task-stack board-stack"></div>
+                  </div>
+                  <div class="timeline-lane">
+                    <div class="timeline-header">Later</div>
+                    <div id="bucket-later" class="task-stack board-stack"></div>
+                  </div>
+                </div>
+              </section>
             </div>
-            <div id="tasks" class="stack"></div>
           </section>
 
-          <section class="card activity-card-shell">
-            <div class="card-header activity-header" id="activity-header-toggle">
+          <section id="view-signals" class="view-panel">
+            <div class="view-header">
               <div>
-                <p class="section-kicker">Signal feed</p>
-                <h3>Recent activity</h3>
+                <p class="section-kicker">Signals</p>
+                <h3 class="view-title">Watcher tasks and recent activity</h3>
               </div>
-              <div class="activity-toolbar">
-                <label class="noise-toggle">
-                  <input id="hide-noise-toggle" type="checkbox" checked />
-                  <span>Hide OCR noise</span>
-                </label>
-                <button id="clear-activities-btn" type="button" class="secondary-btn utility-btn">
-                  Clear all
-                </button>
-                <button id="activity-collapse-btn" type="button" class="secondary-btn utility-btn">
-                  Collapse
-                </button>
-              </div>
+              <span class="badge muted">OCR + capture</span>
             </div>
-            <p class="activity-subnote">Showing latest 20 items.</p>
-            <div id="activities-container">
-              <div id="activities" class="stack"></div>
+
+            <div class="signals-grid">
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <p class="section-kicker">Watcher output</p>
+                    <h3>Screen watcher tasks</h3>
+                  </div>
+                </div>
+                <div id="tasks" class="stack"></div>
+              </section>
+
+              <section class="card activity-card-shell">
+                <div class="card-header activity-header" id="activity-header-toggle">
+                  <div>
+                    <p class="section-kicker">Activity feed</p>
+                    <h3>Recent activity</h3>
+                  </div>
+                  <div class="activity-toolbar">
+                    <label class="noise-toggle">
+                      <input id="hide-noise-toggle" type="checkbox" checked />
+                      <span>Hide OCR noise</span>
+                    </label>
+                    <button id="clear-activities-btn" type="button" class="secondary-btn utility-btn">
+                      Clear all
+                    </button>
+                    <button id="activity-collapse-btn" type="button" class="secondary-btn utility-btn">
+                      Collapse
+                    </button>
+                  </div>
+                </div>
+                <p class="activity-subnote">Showing latest 20 items.</p>
+                <div id="activities-container">
+                  <div id="activities" class="stack"></div>
+                </div>
+              </section>
             </div>
           </section>
-        </section>
+        </div>
       </section>
     </main>
 
@@ -278,11 +373,26 @@
         <div class="planner-task-top">
           <div class="planner-task-title-wrap">
             <h4 class="planner-task-title"></h4>
-            <p class="planner-task-meta"></p>
+            <div class="planner-chip-row">
+              <span class="planner-chip owner-chip"></span>
+              <span class="planner-chip priority-chip"></span>
+              <span class="planner-chip timeline-chip"></span>
+              <span class="planner-chip time-chip"></span>
+            </div>
           </div>
           <button class="planner-complete-btn" type="button">Mark done</button>
         </div>
         <p class="planner-task-body"></p>
+      </article>
+    </template>
+
+    <template id="planner-preview-template">
+      <article class="planner-preview-card">
+        <h4 class="planner-preview-title"></h4>
+        <div class="planner-chip-row">
+          <span class="planner-chip preview-priority-chip"></span>
+          <span class="planner-chip preview-timeline-chip"></span>
+        </div>
       </article>
     </template>
 
@@ -297,7 +407,7 @@
     </template>
 
     <template id="task-template">
-      <article class="small-card signal-task-card">
+      <article class="signal-task-card">
         <div class="signal-task-head">
           <h4 class="card-title"></h4>
           <span class="task-status-pill"></span>
@@ -316,6 +426,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=6"></script>
+    <script src="/static/app.js?v=7"></script>
   </body>
 </html>

@@ -5,6 +5,7 @@ const heroStatusPillEl = document.querySelector("#hero-status-pill");
 
 const tasksEl = document.querySelector("#tasks");
 const activitiesEl = document.querySelector("#activities");
+const activityPreviewEl = document.querySelector("#activity-preview");
 const taskTemplate = document.querySelector("#task-template");
 const activityTemplate = document.querySelector("#activity-template");
 
@@ -32,9 +33,14 @@ const bucketThisWeekEl = document.querySelector("#bucket-this-week");
 const bucketNextWeekEl = document.querySelector("#bucket-next-week");
 const bucketLaterEl = document.querySelector("#bucket-later");
 
+const priorityHighPreviewEl = document.querySelector("#priority-high-preview");
+const priorityMediumPreviewEl = document.querySelector("#priority-medium-preview");
+const priorityLowPreviewEl = document.querySelector("#priority-low-preview");
+
 const meetingListEl = document.querySelector("#meeting-list");
 const meetingListTemplate = document.querySelector("#meeting-list-template");
 const plannerActionTemplate = document.querySelector("#planner-action-template");
+const plannerPreviewTemplate = document.querySelector("#planner-preview-template");
 const actionCountEl = document.querySelector("#action-count");
 
 const activityContainer = document.querySelector("#activities-container");
@@ -46,11 +52,15 @@ const statMeetingsEl = document.querySelector("#stat-meetings");
 const statActivitiesEl = document.querySelector("#stat-activities");
 const statActivitiesMetaEl = document.querySelector("#stat-activities-meta");
 
+const navButtons = [...document.querySelectorAll("[data-view-target]")];
+const viewPanels = [...document.querySelectorAll(".view-panel")];
+
 let activeMeetingId = null;
 let hideNoise = true;
 let activityCollapsed = false;
 let latestDashboard = { tasks: [], activities: [] };
 let latestMeetings = [];
+let activeView = "overview";
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -79,6 +89,10 @@ function sentenceCase(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function setEmptyState(container, message) {
+  container.innerHTML = `<p class="empty">${message}</p>`;
+}
+
 function setActivityCollapsed(collapsed) {
   activityCollapsed = collapsed;
 
@@ -90,6 +104,19 @@ function setActivityCollapsed(collapsed) {
   activityCollapseBtn.textContent = collapsed ? "Expand" : "Collapse";
 }
 
+function setActiveView(viewName) {
+  activeView = viewName;
+
+  navButtons.forEach((button) => {
+    const isActive = button.dataset.viewTarget === viewName;
+    button.classList.toggle("active", isActive);
+  });
+
+  viewPanels.forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `view-${viewName}`);
+  });
+}
+
 function toggleActivityPanel() {
   setActivityCollapsed(!activityCollapsed);
 }
@@ -99,25 +126,10 @@ function updateDashboardStats() {
   const activityCount = latestDashboard.activities.length;
   const meetingCount = latestMeetings.length;
 
-  if (statOpenTasksEl) {
-    statOpenTasksEl.textContent = `${taskCount}`;
-  }
-
-  if (statMeetingsEl) {
-    statMeetingsEl.textContent = `${meetingCount}`;
-  }
-
-  if (statActivitiesEl) {
-    statActivitiesEl.textContent = `${activityCount}`;
-  }
-
-  if (statActivitiesMetaEl) {
-    statActivitiesMetaEl.textContent = hideNoise ? "Noise filtered feed" : "Showing all captured items";
-  }
-}
-
-function setEmptyState(container, message) {
-  container.innerHTML = `<p class="empty">${message}</p>`;
+  statOpenTasksEl.textContent = `${taskCount}`;
+  statMeetingsEl.textContent = `${meetingCount}`;
+  statActivitiesEl.textContent = `${activityCount}`;
+  statActivitiesMetaEl.textContent = hideNoise ? "Noise filtered feed" : "Showing all captured items";
 }
 
 async function fetchWatcherStatus() {
@@ -128,26 +140,25 @@ async function fetchWatcherStatus() {
   watcherToggleBtn.textContent = enabled ? "Stop watcher" : "Start watcher";
   watcherToggleBtn.dataset.mode = enabled ? "stop" : "start";
 
-  if (heroStatusPillEl) {
-    heroStatusPillEl.textContent = enabled ? "Live" : "Paused";
-    heroStatusPillEl.classList.toggle("live", enabled);
-    heroStatusPillEl.classList.toggle("paused", !enabled);
-  }
+  heroStatusPillEl.textContent = enabled ? "Live" : "Paused";
+  heroStatusPillEl.classList.toggle("live", enabled);
+  heroStatusPillEl.classList.toggle("paused", !enabled);
 }
 
 async function fetchDashboard() {
   const includeNoise = hideNoise ? "false" : "true";
   const data = await fetchJson(`/api/dashboard?include_noise=${includeNoise}&activity_limit=20`);
-  const tasks = data.tasks || [];
-  const activities = data.activities || [];
+  latestDashboard = {
+    tasks: data.tasks || [],
+    activities: data.activities || []
+  };
 
-  latestDashboard = { tasks, activities };
   updateDashboardStats();
+  renderScreenTasks(latestDashboard.tasks);
+  renderActivities(latestDashboard.activities);
+  renderActivityPreview(latestDashboard.activities);
 
-  renderScreenTasks(tasks);
-  renderActivities(activities);
-
-  if (activities.length === 0) {
+  if (!latestDashboard.activities.length) {
     setActivityCollapsed(true);
   }
 }
@@ -207,9 +218,29 @@ function renderActivities(activities) {
   });
 }
 
+function renderActivityPreview(activities) {
+  activityPreviewEl.innerHTML = "";
+
+  const previewItems = activities.slice(0, 3);
+  if (!previewItems.length) {
+    setEmptyState(activityPreviewEl, "No recent signal yet.");
+    return;
+  }
+
+  previewItems.forEach((activity) => {
+    const card = document.createElement("article");
+    card.className = "activity-item-card";
+    card.innerHTML = `
+      <h4 class="card-title">${activity.inferred_summary || activity.window_title || "Screen activity"}</h4>
+      <p class="card-meta">${activity.app_name || "Unknown app"} • ${formatDateTime(activity.created_at)}</p>
+      <p class="card-body">${activity.ocr_text || "No OCR text stored."}</p>
+    `;
+    activityPreviewEl.appendChild(card);
+  });
+}
+
 async function fetchMeetings() {
-  const meetings = await fetchJson("/api/meetings");
-  latestMeetings = meetings || [];
+  latestMeetings = await fetchJson("/api/meetings");
   updateDashboardStats();
   renderMeetingList(latestMeetings);
 
@@ -238,6 +269,7 @@ function renderMeetingList(meetings) {
       const details = await fetchJson(`/api/meetings/${meeting.id}`);
       activeMeetingId = meeting.id;
       renderMeetingDetails(details);
+      setActiveView("overview");
     });
 
     meetingListEl.appendChild(node);
@@ -245,23 +277,35 @@ function renderMeetingList(meetings) {
 }
 
 function clearPlannerBoards() {
-  priorityHighEl.innerHTML = "";
-  priorityMediumEl.innerHTML = "";
-  priorityLowEl.innerHTML = "";
-
-  bucketTodayEl.innerHTML = "";
-  bucketTomorrowEl.innerHTML = "";
-  bucketThisWeekEl.innerHTML = "";
-  bucketNextWeekEl.innerHTML = "";
-  bucketLaterEl.innerHTML = "";
+  [
+    priorityHighEl,
+    priorityMediumEl,
+    priorityLowEl,
+    bucketTodayEl,
+    bucketTomorrowEl,
+    bucketThisWeekEl,
+    bucketNextWeekEl,
+    bucketLaterEl,
+    priorityHighPreviewEl,
+    priorityMediumPreviewEl,
+    priorityLowPreviewEl,
+  ].forEach((element) => {
+    element.innerHTML = "";
+  });
 }
 
 function createPlannerActionCard(action, meetingId) {
   const fragment = plannerActionTemplate.content.cloneNode(true);
   const card = fragment.querySelector(".planner-task-card");
   card.querySelector(".planner-task-title").textContent = action.title;
-  card.querySelector(".planner-task-meta").textContent =
-    `${action.owner} • ${action.priority.toUpperCase()} • ${action.timeline_bucket} • ${action.estimated_minutes} min`;
+
+  const chips = card.querySelectorAll(".planner-chip");
+  chips[0].textContent = action.owner || "Unassigned";
+  chips[1].textContent = sentenceCase(action.priority);
+  chips[1].classList.add(`priority-${(action.priority || "low").toLowerCase()}`);
+  chips[2].textContent = action.timeline_bucket || "Later";
+  chips[3].textContent = `${action.estimated_minutes} min`;
+
   card.querySelector(".planner-task-body").textContent =
     `${action.rationale}${action.due_date ? ` Due: ${action.due_date}.` : ""}`;
 
@@ -292,16 +336,33 @@ function createPlannerActionCard(action, meetingId) {
   return card;
 }
 
+function createPlannerPreviewCard(action) {
+  const fragment = plannerPreviewTemplate.content.cloneNode(true);
+  fragment.querySelector(".planner-preview-title").textContent = action.title;
+
+  const priorityChip = fragment.querySelector(".preview-priority-chip");
+  priorityChip.textContent = sentenceCase(action.priority);
+  priorityChip.classList.add(`preview-priority-${(action.priority || "low").toLowerCase()}`);
+
+  fragment.querySelector(".preview-timeline-chip").textContent = action.timeline_bucket || "Later";
+  return fragment;
+}
+
 function ensureLaneEmptyStates(actions) {
   if (!actions.length) {
-    setEmptyState(priorityHighEl, "No actions.");
-    setEmptyState(priorityMediumEl, "No actions.");
-    setEmptyState(priorityLowEl, "No actions.");
-    setEmptyState(bucketTodayEl, "No items.");
-    setEmptyState(bucketTomorrowEl, "No items.");
-    setEmptyState(bucketThisWeekEl, "No items.");
-    setEmptyState(bucketNextWeekEl, "No items.");
-    setEmptyState(bucketLaterEl, "No items.");
+    [
+      priorityHighEl,
+      priorityMediumEl,
+      priorityLowEl,
+      bucketTodayEl,
+      bucketTomorrowEl,
+      bucketThisWeekEl,
+      bucketNextWeekEl,
+      bucketLaterEl,
+      priorityHighPreviewEl,
+      priorityMediumPreviewEl,
+      priorityLowPreviewEl,
+    ].forEach((container) => setEmptyState(container, "No items."));
     return;
   }
 
@@ -314,6 +375,9 @@ function ensureLaneEmptyStates(actions) {
     bucketThisWeekEl,
     bucketNextWeekEl,
     bucketLaterEl,
+    priorityHighPreviewEl,
+    priorityMediumPreviewEl,
+    priorityLowPreviewEl,
   ].forEach((container) => {
     if (!container.children.length) {
       setEmptyState(container, "No items.");
@@ -340,9 +404,17 @@ function renderMeetingDetails(meeting) {
 
     const priorityTarget = getPriorityContainer(action.priority);
     const timelineTarget = getTimelineContainer(action.timeline_bucket);
+    const previewTarget = getPriorityPreviewContainer(action.priority);
 
-    if (priorityTarget) priorityTarget.appendChild(priorityCard);
-    if (timelineTarget) timelineTarget.appendChild(timelineCard);
+    if (priorityTarget) {
+      priorityTarget.appendChild(priorityCard);
+    }
+    if (timelineTarget) {
+      timelineTarget.appendChild(timelineCard);
+    }
+    if (previewTarget && previewTarget.children.length < 2) {
+      previewTarget.appendChild(createPlannerPreviewCard(action));
+    }
   });
 
   ensureLaneEmptyStates(actions);
@@ -353,6 +425,13 @@ function getPriorityContainer(priority) {
   if (normalized === "high") return priorityHighEl;
   if (normalized === "medium") return priorityMediumEl;
   return priorityLowEl;
+}
+
+function getPriorityPreviewContainer(priority) {
+  const normalized = (priority || "").toLowerCase();
+  if (normalized === "high") return priorityHighPreviewEl;
+  if (normalized === "medium") return priorityMediumPreviewEl;
+  return priorityLowPreviewEl;
 }
 
 function getTimelineContainer(bucket) {
@@ -390,6 +469,7 @@ meetingForm.addEventListener("submit", async (event) => {
     renderMeetingDetails(meeting);
     await fetchMeetings();
     meetingForm.reset();
+    setActiveView("overview");
   } catch (error) {
     console.error("Meeting plan generation failed:", error);
     alert("Failed to generate meeting plan.");
@@ -428,49 +508,48 @@ watcherToggleBtn.addEventListener("click", async () => {
   }
 });
 
-if (clearActivitiesBtn) {
-  clearActivitiesBtn.addEventListener("click", async () => {
-    try {
-      clearActivitiesBtn.disabled = true;
-      clearActivitiesBtn.textContent = "Clearing...";
-      await fetchJson("/api/activities/clear", { method: "POST" });
-      await fetchDashboard();
-    } catch (error) {
-      console.error("Failed to clear activities:", error);
-      alert("Failed to clear activities.");
-    } finally {
-      clearActivitiesBtn.disabled = false;
-      clearActivitiesBtn.textContent = "Clear all";
-    }
-  });
-}
-
-if (hideNoiseToggle) {
-  hideNoiseToggle.checked = true;
-  hideNoiseToggle.addEventListener("change", async () => {
-    hideNoise = hideNoiseToggle.checked;
+clearActivitiesBtn.addEventListener("click", async () => {
+  try {
+    clearActivitiesBtn.disabled = true;
+    clearActivitiesBtn.textContent = "Clearing...";
+    await fetchJson("/api/activities/clear", { method: "POST" });
     await fetchDashboard();
-  });
-}
+  } catch (error) {
+    console.error("Failed to clear activities:", error);
+    alert("Failed to clear activities.");
+  } finally {
+    clearActivitiesBtn.disabled = false;
+    clearActivitiesBtn.textContent = "Clear all";
+  }
+});
 
-if (activityCollapseBtn) {
-  activityCollapseBtn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    toggleActivityPanel();
-  });
-}
+hideNoiseToggle.checked = true;
+hideNoiseToggle.addEventListener("change", async () => {
+  hideNoise = hideNoiseToggle.checked;
+  await fetchDashboard();
+});
 
-if (activityHeaderToggle) {
-  activityHeaderToggle.addEventListener("click", (event) => {
-    if (event.target.closest("button") || event.target.closest("input") || event.target.closest("label")) {
-      return;
-    }
-    toggleActivityPanel();
+activityCollapseBtn.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleActivityPanel();
+});
+
+activityHeaderToggle.addEventListener("click", (event) => {
+  if (event.target.closest("button") || event.target.closest("input") || event.target.closest("label")) {
+    return;
+  }
+  toggleActivityPanel();
+});
+
+navButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveView(button.dataset.viewTarget);
   });
-}
+});
 
 async function initialize() {
   setActivityCollapsed(false);
+  setActiveView(activeView);
   await Promise.all([fetchWatcherStatus(), fetchDashboard(), fetchMeetings()]);
 }
 
