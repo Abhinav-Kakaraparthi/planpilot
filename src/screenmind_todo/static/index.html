@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PlanPilot</title>
-    <link rel="stylesheet" href="/static/styles.css?v=10" />
+    <link rel="stylesheet" href="/static/styles.css?v=11" />
   </head>
   <body>
     <div class="app-backdrop">
@@ -21,20 +21,22 @@
       aria-label="Floating meeting copilot"
     >
       <div class="floating-copilot-header">
-        <div>
+        <div class="floating-heading">
           <p class="section-kicker">Live copilot</p>
-          <h3 class="floating-copilot-title">Answer overlay</h3>
+          <h3 class="floating-copilot-title">Answer dock</h3>
         </div>
         <div class="floating-copilot-actions">
-          <button id="floating-ask-btn" class="secondary-btn floating-btn" type="button">What should I say?</button>
-          <button id="floating-summary-btn" class="secondary-btn floating-btn" type="button">Summarize</button>
-          <button id="floating-tasks-btn" class="secondary-btn floating-btn" type="button">Create tasks</button>
-          <button id="floating-refresh-btn" class="secondary-btn floating-btn" type="button">Refresh</button>
-          <button id="floating-open-btn" class="secondary-btn floating-btn" type="button">Open page</button>
-          <button id="floating-toggle-btn" class="secondary-btn floating-btn" type="button">Minimize</button>
+          <button id="floating-open-btn" class="secondary-btn floating-icon-btn" type="button" aria-label="Open copilot page">Open</button>
+          <button id="floating-toggle-btn" class="secondary-btn floating-icon-btn" type="button" aria-label="Minimize dock">Hide</button>
         </div>
       </div>
       <div id="floating-copilot-body" class="floating-copilot-body">
+        <div class="floating-mode-row">
+          <button id="floating-ask-btn" class="secondary-btn floating-mode-btn" type="button">Answer</button>
+          <button id="floating-summary-btn" class="secondary-btn floating-mode-btn" type="button">Summary</button>
+          <button id="floating-tasks-btn" class="secondary-btn floating-mode-btn" type="button">Tasks</button>
+          <button id="floating-refresh-btn" class="secondary-btn floating-mode-btn" type="button">Refresh</button>
+        </div>
         <div class="floating-chip-row">
           <span id="floating-speaker-chip" class="badge muted">No speaker</span>
           <span id="floating-tone-chip" class="badge">Concise</span>
@@ -57,11 +59,10 @@
             <strong id="floating-follow-up" class="floating-meta-value">No follow-up yet.</strong>
           </div>
         </div>
-        <div class="floating-shortcuts">
-          <span class="floating-shortcut-chip">Arrow keys: move</span>
-          <span class="floating-shortcut-chip">Shift + Arrow: move faster</span>
-          <span class="floating-shortcut-chip">C: open copilot</span>
-          <span class="floating-shortcut-chip">M: minimize</span>
+        <div class="floating-shortcuts compact">
+          <span class="floating-shortcut-chip">Drag header to move</span>
+          <span class="floating-shortcut-chip">/ to focus</span>
+          <span class="floating-shortcut-chip">Arrows to move</span>
         </div>
       </div>
     </div>
@@ -561,6 +562,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=10"></script>
+    <script src="/static/app.js?v=11"></script>
   </body>
 </html>

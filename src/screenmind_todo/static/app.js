@@ -10,6 +10,7 @@ const taskTemplate = document.querySelector("#task-template");
 const activityTemplate = document.querySelector("#activity-template");
 const refreshCopilotBtn = document.querySelector("#refresh-copilot-btn");
 const floatingCopilotEl = document.querySelector("#floating-copilot");
+const floatingCopilotHeaderEl = document.querySelector(".floating-copilot-header");
 const floatingCopilotBodyEl = document.querySelector("#floating-copilot-body");
 const floatingAskBtn = document.querySelector("#floating-ask-btn");
 const floatingSummaryBtn = document.querySelector("#floating-summary-btn");
@@ -92,6 +93,7 @@ let activeView = "overview";
 let floatingCopilotMinimized = false;
 let floatingCopilotMode = "answer";
 let floatingPosition = { top: 24, right: 24 };
+let dragState = null;
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -389,7 +391,7 @@ function renderCopilot() {
 function setFloatingCopilotMinimized(minimized) {
   floatingCopilotMinimized = minimized;
   floatingCopilotEl.classList.toggle("minimized", minimized);
-  floatingToggleBtn.textContent = minimized ? "Expand" : "Minimize";
+  floatingToggleBtn.textContent = minimized ? "Show" : "Hide";
 
   if (floatingCopilotBodyEl) {
     floatingCopilotBodyEl.setAttribute("aria-hidden", minimized ? "true" : "false");
@@ -408,6 +410,56 @@ function moveFloatingCopilot(topDelta, rightDelta) {
   floatingPosition.top = Math.min(maxTop, Math.max(8, floatingPosition.top + topDelta));
   floatingPosition.right = Math.min(maxRight, Math.max(8, floatingPosition.right + rightDelta));
   applyFloatingPosition();
+}
+
+function clampFloatingPosition() {
+  const width = floatingCopilotEl.offsetWidth || 360;
+  const height = floatingCopilotEl.offsetHeight || 220;
+  const maxTop = Math.max(8, window.innerHeight - height - 8);
+  const maxLeft = Math.max(8, window.innerWidth - width - 8);
+  const left = Math.max(8, Math.min(maxLeft, window.innerWidth - floatingPosition.right - width));
+  const top = Math.max(8, Math.min(maxTop, floatingPosition.top));
+  floatingPosition.top = top;
+  floatingPosition.right = Math.max(8, window.innerWidth - left - width);
+  applyFloatingPosition();
+}
+
+function startFloatingDrag(event) {
+  if (event.target.closest("button")) {
+    return;
+  }
+
+  const rect = floatingCopilotEl.getBoundingClientRect();
+  dragState = {
+    pointerOffsetX: event.clientX - rect.left,
+    pointerOffsetY: event.clientY - rect.top
+  };
+  floatingCopilotEl.focus();
+  window.addEventListener("pointermove", onFloatingDragMove);
+  window.addEventListener("pointerup", stopFloatingDrag);
+}
+
+function onFloatingDragMove(event) {
+  if (!dragState) {
+    return;
+  }
+
+  const width = floatingCopilotEl.offsetWidth || 360;
+  const height = floatingCopilotEl.offsetHeight || 220;
+  const maxLeft = Math.max(8, window.innerWidth - width - 8);
+  const maxTop = Math.max(8, window.innerHeight - height - 8);
+  const left = Math.max(8, Math.min(maxLeft, event.clientX - dragState.pointerOffsetX));
+  const top = Math.max(8, Math.min(maxTop, event.clientY - dragState.pointerOffsetY));
+
+  floatingPosition.top = top;
+  floatingPosition.right = Math.max(8, window.innerWidth - left - width);
+  applyFloatingPosition();
+}
+
+function stopFloatingDrag() {
+  dragState = null;
+  window.removeEventListener("pointermove", onFloatingDragMove);
+  window.removeEventListener("pointerup", stopFloatingDrag);
 }
 
 function setActivityCollapsed(collapsed) {
@@ -904,6 +956,8 @@ floatingToggleBtn.addEventListener("click", () => {
   setFloatingCopilotMinimized(!floatingCopilotMinimized);
 });
 
+floatingCopilotHeaderEl.addEventListener("pointerdown", startFloatingDrag);
+
 floatingCopilotEl.addEventListener("keydown", (event) => {
   const step = event.shiftKey ? 36 : 18;
 
@@ -951,7 +1005,7 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-window.addEventListener("resize", applyFloatingPosition);
+window.addEventListener("resize", clampFloatingPosition);
 
 async function initialize() {
   setActivityCollapsed(false);

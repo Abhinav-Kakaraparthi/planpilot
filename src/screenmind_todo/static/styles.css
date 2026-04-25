@@ -156,9 +156,9 @@ textarea {
   top: 24px;
   right: 24px;
   z-index: 10;
-  width: min(460px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 32px));
   border: 1px solid var(--border-strong);
-  border-radius: 24px;
+  border-radius: 20px;
   background: rgba(24, 36, 42, 0.88);
   color: #f7f2eb;
   backdrop-filter: blur(18px);
@@ -169,7 +169,7 @@ textarea {
 }
 
 .floating-copilot.minimized {
-  width: 300px;
+  width: 220px;
 }
 
 .floating-copilot:focus {
@@ -190,15 +190,20 @@ textarea {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px 18px 14px;
+  padding: 14px 14px 10px;
   background: linear-gradient(135deg, rgba(191, 106, 61, 0.16) 0%, rgba(24, 36, 42, 0) 58%);
+  cursor: move;
 }
 
 .floating-copilot-title {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.25rem;
+  font-size: 1rem;
   letter-spacing: -0.02em;
+}
+
+.floating-heading .section-kicker {
+  margin-bottom: 4px;
 }
 
 .floating-copilot-header .section-kicker,
@@ -208,31 +213,51 @@ textarea {
 
 .floating-copilot-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.floating-btn {
-  padding: 8px 12px;
+.floating-icon-btn {
+  padding: 7px 10px;
   background: rgba(255, 255, 255, 0.08);
   color: #f7f2eb;
+  font-size: 0.75rem;
 }
 
-.floating-btn.active {
-  background: rgba(191, 106, 61, 0.24);
-  color: #fff4eb;
-}
-
-.floating-btn:hover {
+.floating-icon-btn:hover {
   background: rgba(255, 255, 255, 0.14);
 }
 
 .floating-copilot-body {
-  padding: 0 18px 18px;
+  padding: 0 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+}
+
+.floating-mode-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.floating-mode-btn {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(247, 242, 235, 0.9);
+  font-size: 0.76rem;
+  box-shadow: none;
+}
+
+.floating-mode-btn:hover {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.floating-mode-btn.active {
+  background: rgba(191, 106, 61, 0.26);
+  color: #fff4eb;
 }
 
 .floating-chip-row {
@@ -251,8 +276,8 @@ textarea {
 }
 
 .floating-section {
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -269,7 +294,7 @@ textarea {
 }
 
 .floating-answer {
-  font-size: 1rem;
+  font-size: 0.94rem;
 }
 
 .floating-meta-grid {
@@ -279,8 +304,8 @@ textarea {
 }
 
 .floating-meta-card {
-  padding: 14px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -303,15 +328,19 @@ textarea {
   gap: 8px;
 }
 
+.floating-shortcuts.compact {
+  gap: 6px;
+}
+
 .floating-shortcut-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 7px 10px;
+  padding: 6px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(247, 242, 235, 0.8);
-  font-size: 0.73rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
