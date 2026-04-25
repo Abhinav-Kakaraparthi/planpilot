@@ -13,6 +13,44 @@
       <div class="backdrop-grid"></div>
     </div>
 
+    <div id="floating-copilot" class="floating-copilot">
+      <div class="floating-copilot-header">
+        <div>
+          <p class="section-kicker">Live copilot</p>
+          <h3 class="floating-copilot-title">Answer overlay</h3>
+        </div>
+        <div class="floating-copilot-actions">
+          <button id="floating-refresh-btn" class="secondary-btn floating-btn" type="button">Refresh</button>
+          <button id="floating-open-btn" class="secondary-btn floating-btn" type="button">Open page</button>
+          <button id="floating-toggle-btn" class="secondary-btn floating-btn" type="button">Minimize</button>
+        </div>
+      </div>
+      <div id="floating-copilot-body" class="floating-copilot-body">
+        <div class="floating-chip-row">
+          <span id="floating-speaker-chip" class="badge muted">No speaker</span>
+          <span id="floating-tone-chip" class="badge">Concise</span>
+        </div>
+        <div class="floating-section">
+          <p class="section-kicker">Question</p>
+          <p id="floating-question" class="floating-copy empty">No meeting question detected yet.</p>
+        </div>
+        <div class="floating-section floating-answer-section">
+          <p class="section-kicker">Suggested answer</p>
+          <p id="floating-answer" class="floating-answer empty">Load a meeting plan to generate a response.</p>
+        </div>
+        <div class="floating-meta-grid">
+          <div class="floating-meta-card">
+            <span class="metric-label">Screen signal</span>
+            <strong id="floating-screen-context" class="floating-meta-value">No signal</strong>
+          </div>
+          <div class="floating-meta-card">
+            <span class="metric-label">Follow-up</span>
+            <strong id="floating-follow-up" class="floating-meta-value">No follow-up yet.</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <main class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-panel brand-panel">
@@ -508,6 +546,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=8"></script>
+    <script src="/static/app.js?v=9"></script>
   </body>
 </html>

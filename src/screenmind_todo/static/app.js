@@ -9,6 +9,11 @@ const activityPreviewEl = document.querySelector("#activity-preview");
 const taskTemplate = document.querySelector("#task-template");
 const activityTemplate = document.querySelector("#activity-template");
 const refreshCopilotBtn = document.querySelector("#refresh-copilot-btn");
+const floatingCopilotEl = document.querySelector("#floating-copilot");
+const floatingCopilotBodyEl = document.querySelector("#floating-copilot-body");
+const floatingRefreshBtn = document.querySelector("#floating-refresh-btn");
+const floatingOpenBtn = document.querySelector("#floating-open-btn");
+const floatingToggleBtn = document.querySelector("#floating-toggle-btn");
 
 const clearActivitiesBtn = document.querySelector("#clear-activities-btn");
 const hideNoiseToggle = document.querySelector("#hide-noise-toggle");
@@ -63,6 +68,12 @@ const copilotPointsEl = document.querySelector("#copilot-points");
 const copilotScreenContextEl = document.querySelector("#copilot-screen-context");
 const copilotTaskContextEl = document.querySelector("#copilot-task-context");
 const copilotFollowUpEl = document.querySelector("#copilot-follow-up");
+const floatingSpeakerChipEl = document.querySelector("#floating-speaker-chip");
+const floatingToneChipEl = document.querySelector("#floating-tone-chip");
+const floatingQuestionEl = document.querySelector("#floating-question");
+const floatingAnswerEl = document.querySelector("#floating-answer");
+const floatingScreenContextEl = document.querySelector("#floating-screen-context");
+const floatingFollowUpEl = document.querySelector("#floating-follow-up");
 
 const navButtons = [...document.querySelectorAll(".nav-pill[data-view-target]")];
 const shortcutViewButtons = [...document.querySelectorAll("[data-shortcut-view]")];
@@ -75,6 +86,7 @@ let activityCollapsed = false;
 let latestDashboard = { tasks: [], activities: [] };
 let latestMeetings = [];
 let activeView = "overview";
+let floatingCopilotMinimized = false;
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -276,6 +288,13 @@ function renderCopilot() {
   copilotTaskContextEl.textContent = data.taskContext;
   copilotFollowUpEl.textContent = data.followUp;
 
+  floatingSpeakerChipEl.textContent = data.speaker;
+  floatingToneChipEl.textContent = data.tone;
+  floatingQuestionEl.textContent = data.question;
+  floatingAnswerEl.textContent = data.answer;
+  floatingScreenContextEl.textContent = data.screenContext;
+  floatingFollowUpEl.textContent = data.followUp;
+
   copilotPointsEl.innerHTML = "";
   if (!data.points.length) {
     setEmptyState(copilotPointsEl, "No talking points yet.");
@@ -291,6 +310,16 @@ function renderCopilot() {
     `;
     copilotPointsEl.appendChild(card);
   });
+}
+
+function setFloatingCopilotMinimized(minimized) {
+  floatingCopilotMinimized = minimized;
+  floatingCopilotEl.classList.toggle("minimized", minimized);
+  floatingToggleBtn.textContent = minimized ? "Expand" : "Minimize";
+
+  if (floatingCopilotBodyEl) {
+    floatingCopilotBodyEl.setAttribute("aria-hidden", minimized ? "true" : "false");
+  }
 }
 
 function setActivityCollapsed(collapsed) {
@@ -760,9 +789,22 @@ refreshCopilotBtn.addEventListener("click", () => {
   renderCopilot();
 });
 
+floatingRefreshBtn.addEventListener("click", () => {
+  renderCopilot();
+});
+
+floatingOpenBtn.addEventListener("click", () => {
+  setActiveView("copilot");
+});
+
+floatingToggleBtn.addEventListener("click", () => {
+  setFloatingCopilotMinimized(!floatingCopilotMinimized);
+});
+
 async function initialize() {
   setActivityCollapsed(false);
   setActiveView(activeView);
+  setFloatingCopilotMinimized(false);
   renderCopilot();
   await Promise.all([fetchWatcherStatus(), fetchDashboard(), fetchMeetings()]);
 }
