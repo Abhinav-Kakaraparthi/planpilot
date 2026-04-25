@@ -11,6 +11,9 @@ const activityTemplate = document.querySelector("#activity-template");
 const refreshCopilotBtn = document.querySelector("#refresh-copilot-btn");
 const floatingCopilotEl = document.querySelector("#floating-copilot");
 const floatingCopilotBodyEl = document.querySelector("#floating-copilot-body");
+const floatingAskBtn = document.querySelector("#floating-ask-btn");
+const floatingSummaryBtn = document.querySelector("#floating-summary-btn");
+const floatingTasksBtn = document.querySelector("#floating-tasks-btn");
 const floatingRefreshBtn = document.querySelector("#floating-refresh-btn");
 const floatingOpenBtn = document.querySelector("#floating-open-btn");
 const floatingToggleBtn = document.querySelector("#floating-toggle-btn");
@@ -87,6 +90,8 @@ let latestDashboard = { tasks: [], activities: [] };
 let latestMeetings = [];
 let activeView = "overview";
 let floatingCopilotMinimized = false;
+let floatingCopilotMode = "answer";
+let floatingPosition = { top: 24, right: 24 };
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -275,6 +280,73 @@ function buildCopilotResponse() {
   };
 }
 
+function buildSummaryModeResponse() {
+  if (!activeMeetingDetails) {
+    return {
+      speaker: "Summary mode",
+      question: "No meeting loaded.",
+      answer: "Generate or open a meeting to get a concise summary here.",
+      tone: "Brief",
+      screenContext: summarizeScreenSignal(),
+      followUp: "Open a meeting plan first."
+    };
+  }
+
+  return {
+    speaker: "Summary mode",
+    question: "Current meeting state",
+    answer: truncateText(activeMeetingDetails.summary || "No summary available.", 280),
+    tone: "Brief",
+    screenContext: summarizeScreenSignal(),
+    followUp: truncateText(activeMeetingDetails.priorities_overview || "No follow-up yet.", 120)
+  };
+}
+
+function buildTasksModeResponse() {
+  const tasks = latestDashboard.tasks
+    .filter((task) => (task.status || "").toLowerCase() !== "done")
+    .slice(0, 3)
+    .map((task) => task.title);
+
+  if (!tasks.length) {
+    return {
+      speaker: "Task mode",
+      question: "No open watcher tasks.",
+      answer: "There are no open watcher tasks right now. Use Create tasks after a meeting plan or fresh screen scan.",
+      tone: "Actionable",
+      screenContext: summarizeScreenSignal(),
+      followUp: "Run a scan or generate a meeting plan."
+    };
+  }
+
+  return {
+    speaker: "Task mode",
+    question: "Top actions to push next",
+    answer: tasks.map((task, index) => `${index + 1}. ${task}`).join(" "),
+    tone: "Actionable",
+    screenContext: summarizeScreenSignal(),
+    followUp: "Pick one task and confirm owner plus deadline."
+  };
+}
+
+function getFloatingModeData() {
+  if (floatingCopilotMode === "summary") {
+    return buildSummaryModeResponse();
+  }
+
+  if (floatingCopilotMode === "tasks") {
+    return buildTasksModeResponse();
+  }
+
+  return buildCopilotResponse();
+}
+
+function updateFloatingModeButtons() {
+  floatingAskBtn.classList.toggle("active", floatingCopilotMode === "answer");
+  floatingSummaryBtn.classList.toggle("active", floatingCopilotMode === "summary");
+  floatingTasksBtn.classList.toggle("active", floatingCopilotMode === "tasks");
+}
+
 function renderCopilot() {
   const data = buildCopilotResponse();
 
@@ -288,12 +360,14 @@ function renderCopilot() {
   copilotTaskContextEl.textContent = data.taskContext;
   copilotFollowUpEl.textContent = data.followUp;
 
-  floatingSpeakerChipEl.textContent = data.speaker;
-  floatingToneChipEl.textContent = data.tone;
-  floatingQuestionEl.textContent = data.question;
-  floatingAnswerEl.textContent = data.answer;
-  floatingScreenContextEl.textContent = data.screenContext;
-  floatingFollowUpEl.textContent = data.followUp;
+  const floatingData = getFloatingModeData();
+  floatingSpeakerChipEl.textContent = floatingData.speaker;
+  floatingToneChipEl.textContent = floatingData.tone;
+  floatingQuestionEl.textContent = floatingData.question;
+  floatingAnswerEl.textContent = floatingData.answer;
+  floatingScreenContextEl.textContent = floatingData.screenContext;
+  floatingFollowUpEl.textContent = floatingData.followUp;
+  updateFloatingModeButtons();
 
   copilotPointsEl.innerHTML = "";
   if (!data.points.length) {
@@ -320,6 +394,20 @@ function setFloatingCopilotMinimized(minimized) {
   if (floatingCopilotBodyEl) {
     floatingCopilotBodyEl.setAttribute("aria-hidden", minimized ? "true" : "false");
   }
+}
+
+function applyFloatingPosition() {
+  floatingCopilotEl.style.top = `${floatingPosition.top}px`;
+  floatingCopilotEl.style.right = `${floatingPosition.right}px`;
+}
+
+function moveFloatingCopilot(topDelta, rightDelta) {
+  const maxTop = Math.max(8, window.innerHeight - 120);
+  const maxRight = Math.max(8, window.innerWidth - 220);
+
+  floatingPosition.top = Math.min(maxTop, Math.max(8, floatingPosition.top + topDelta));
+  floatingPosition.right = Math.min(maxRight, Math.max(8, floatingPosition.right + rightDelta));
+  applyFloatingPosition();
 }
 
 function setActivityCollapsed(collapsed) {
@@ -793,6 +881,21 @@ floatingRefreshBtn.addEventListener("click", () => {
   renderCopilot();
 });
 
+floatingAskBtn.addEventListener("click", () => {
+  floatingCopilotMode = "answer";
+  renderCopilot();
+});
+
+floatingSummaryBtn.addEventListener("click", () => {
+  floatingCopilotMode = "summary";
+  renderCopilot();
+});
+
+floatingTasksBtn.addEventListener("click", () => {
+  floatingCopilotMode = "tasks";
+  renderCopilot();
+});
+
 floatingOpenBtn.addEventListener("click", () => {
   setActiveView("copilot");
 });
@@ -801,10 +904,60 @@ floatingToggleBtn.addEventListener("click", () => {
   setFloatingCopilotMinimized(!floatingCopilotMinimized);
 });
 
+floatingCopilotEl.addEventListener("keydown", (event) => {
+  const step = event.shiftKey ? 36 : 18;
+
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    moveFloatingCopilot(-step, 0);
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    moveFloatingCopilot(step, 0);
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    moveFloatingCopilot(0, step);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    moveFloatingCopilot(0, -step);
+  } else if (event.key.toLowerCase() === "m") {
+    event.preventDefault();
+    setFloatingCopilotMinimized(!floatingCopilotMinimized);
+  } else if (event.key.toLowerCase() === "c") {
+    event.preventDefault();
+    setActiveView("copilot");
+  } else if (event.key === "1") {
+    event.preventDefault();
+    floatingCopilotMode = "answer";
+    renderCopilot();
+  } else if (event.key === "2") {
+    event.preventDefault();
+    floatingCopilotMode = "summary";
+    renderCopilot();
+  } else if (event.key === "3") {
+    event.preventDefault();
+    floatingCopilotMode = "tasks";
+    renderCopilot();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.target.closest("input, textarea")) {
+    return;
+  }
+
+  if (event.key === "/") {
+    event.preventDefault();
+    floatingCopilotEl.focus();
+  }
+});
+
+window.addEventListener("resize", applyFloatingPosition);
+
 async function initialize() {
   setActivityCollapsed(false);
   setActiveView(activeView);
   setFloatingCopilotMinimized(false);
+  applyFloatingPosition();
   renderCopilot();
   await Promise.all([fetchWatcherStatus(), fetchDashboard(), fetchMeetings()]);
 }

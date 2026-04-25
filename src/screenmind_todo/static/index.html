@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PlanPilot</title>
-    <link rel="stylesheet" href="/static/styles.css?v=8" />
+    <link rel="stylesheet" href="/static/styles.css?v=10" />
   </head>
   <body>
     <div class="app-backdrop">
@@ -13,13 +13,22 @@
       <div class="backdrop-grid"></div>
     </div>
 
-    <div id="floating-copilot" class="floating-copilot">
+    <div
+      id="floating-copilot"
+      class="floating-copilot"
+      tabindex="0"
+      role="dialog"
+      aria-label="Floating meeting copilot"
+    >
       <div class="floating-copilot-header">
         <div>
           <p class="section-kicker">Live copilot</p>
           <h3 class="floating-copilot-title">Answer overlay</h3>
         </div>
         <div class="floating-copilot-actions">
+          <button id="floating-ask-btn" class="secondary-btn floating-btn" type="button">What should I say?</button>
+          <button id="floating-summary-btn" class="secondary-btn floating-btn" type="button">Summarize</button>
+          <button id="floating-tasks-btn" class="secondary-btn floating-btn" type="button">Create tasks</button>
           <button id="floating-refresh-btn" class="secondary-btn floating-btn" type="button">Refresh</button>
           <button id="floating-open-btn" class="secondary-btn floating-btn" type="button">Open page</button>
           <button id="floating-toggle-btn" class="secondary-btn floating-btn" type="button">Minimize</button>
@@ -47,6 +56,12 @@
             <span class="metric-label">Follow-up</span>
             <strong id="floating-follow-up" class="floating-meta-value">No follow-up yet.</strong>
           </div>
+        </div>
+        <div class="floating-shortcuts">
+          <span class="floating-shortcut-chip">Arrow keys: move</span>
+          <span class="floating-shortcut-chip">Shift + Arrow: move faster</span>
+          <span class="floating-shortcut-chip">C: open copilot</span>
+          <span class="floating-shortcut-chip">M: minimize</span>
         </div>
       </div>
     </div>
@@ -546,6 +561,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=9"></script>
+    <script src="/static/app.js?v=10"></script>
   </body>
 </html>
