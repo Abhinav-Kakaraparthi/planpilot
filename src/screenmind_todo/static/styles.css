@@ -707,6 +707,71 @@ textarea {
   border: 1px solid rgba(21, 32, 37, 0.07);
 }
 
+.execution-health-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(21, 32, 37, 0.07);
+}
+
+.execution-health-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.execution-health-label {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+.execution-health-label.health-at_risk {
+  color: var(--red);
+}
+
+.execution-health-label.health-needs_start {
+  color: var(--amber);
+}
+
+.execution-health-label.health-on_track,
+.execution-health-label.health-complete {
+  color: var(--green);
+}
+
+.progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(29, 48, 56, 0.1);
+}
+
+.progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--amber);
+  transition: width 220ms ease;
+}
+
+.progress-fill.health-at_risk {
+  background: var(--red);
+}
+
+.progress-fill.health-on_track,
+.progress-fill.health-complete {
+  background: var(--green);
+}
+
+.execution-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
 .accent-block {
   background: linear-gradient(135deg, rgba(29, 48, 56, 0.98) 0%, rgba(49, 80, 92, 0.96) 100%);
 }
@@ -760,6 +825,14 @@ textarea {
   border-radius: 18px;
   padding: 14px;
   box-shadow: var(--shadow-sm);
+}
+
+.planner-task-card.done {
+  opacity: 0.64;
+}
+
+.planner-task-card.done .planner-task-title {
+  text-decoration: line-through;
 }
 
 .planner-preview-title {
@@ -995,6 +1068,23 @@ textarea {
 
 .planner-chip.priority-low,
 .preview-priority-low {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.planner-chip.risk-high,
+.planner-chip.blocked {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.planner-chip.risk-medium {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.planner-chip.risk-low,
+.planner-chip.ready {
   background: var(--green-soft);
   color: var(--green);
 }

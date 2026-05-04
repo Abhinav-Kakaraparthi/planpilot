@@ -183,6 +183,20 @@
                       <p id="meeting-priorities-overview" class="body-text empty">No priorities yet.</p>
                     </div>
                   </div>
+                  <div class="execution-health-card">
+                    <div class="execution-health-top">
+                      <div>
+                        <p class="section-kicker">Plan health</p>
+                        <h4 id="execution-health-label">No plan loaded</h4>
+                      </div>
+                      <span id="execution-progress-label" class="badge muted">0%</span>
+                    </div>
+                    <div class="progress-track" aria-hidden="true">
+                      <div id="execution-progress-bar" class="progress-fill"></div>
+                    </div>
+                    <p id="next-recommendation" class="body-text empty">Generate or open a plan to see the next move.</p>
+                    <p id="adaptation-note" class="execution-note empty">No execution state yet.</p>
+                  </div>
                 </div>
               </section>
 
@@ -514,6 +528,8 @@
               <span class="planner-chip priority-chip"></span>
               <span class="planner-chip timeline-chip"></span>
               <span class="planner-chip time-chip"></span>
+              <span class="planner-chip risk-chip"></span>
+              <span class="planner-chip blocked-chip"></span>
             </div>
           </div>
           <button class="planner-complete-btn" type="button">Mark done</button>

@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect, text
 
 from screenmind_todo.api.meeting_routes import meeting_router
 from screenmind_todo.api.routes import router
@@ -18,9 +19,40 @@ settings = get_settings()
 watcher = ActivityWatcher(settings)
 
 
+def ensure_meeting_action_columns() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        return
+
+    inspector = inspect(engine)
+    table_columns = {
+        "meeting_action_items": {
+            "dependency_summary": "TEXT NOT NULL DEFAULT ''",
+            "risk_level": "VARCHAR(20) NOT NULL DEFAULT 'medium'",
+            "unblocker": "TEXT NOT NULL DEFAULT ''",
+        },
+        "meeting_sessions": {
+            "progress_percent": "INTEGER NOT NULL DEFAULT 0",
+            "execution_health": "VARCHAR(40) NOT NULL DEFAULT 'needs_start'",
+            "next_recommendation": "TEXT NOT NULL DEFAULT ''",
+            "adaptation_note": "TEXT NOT NULL DEFAULT ''",
+        },
+    }
+
+    with engine.begin() as connection:
+        for table_name, columns in table_columns.items():
+            if not inspector.has_table(table_name):
+                continue
+
+            existing = {column["name"] for column in inspector.get_columns(table_name)}
+            for name, definition in columns.items():
+                if name not in existing:
+                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {name} {definition}"))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_meeting_action_columns()
     await watcher.start()
     try:
         yield

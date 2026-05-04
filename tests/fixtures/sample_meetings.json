@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Client delivery sync",
+    "transcript": "We must send the final report by Friday. John will clean the metrics section. Abhinav should update the slides and send the client email. We also need to prepare talking points for the Monday review.",
+    "target_end_date": "2026-04-24"
+  },
+  {
+    "title": "Job application planning",
+    "transcript": "I need to tailor my resume for the AbbVie data scientist role, message the recruiter, and submit the application before Wednesday. I should also prepare three interview stories and review the job description.",
+    "target_end_date": "2026-04-23"
+  },
+  {
+    "title": "Engineering standup",
+    "transcript": "The API bug is blocking the dashboard. Sara should fix the endpoint. Mike needs to update the frontend state handling. We should deploy the patch before tomorrow morning.",
+    "target_end_date": "2026-04-22"
+  }
+]

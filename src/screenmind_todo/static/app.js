@@ -32,6 +32,11 @@ const meetingSummaryEl = document.querySelector("#meeting-summary");
 const meetingDecisionsEl = document.querySelector("#meeting-decisions");
 const meetingPrioritiesOverviewEl = document.querySelector("#meeting-priorities-overview");
 const meetingIdBadgeEl = document.querySelector("#meeting-id-badge");
+const executionHealthLabelEl = document.querySelector("#execution-health-label");
+const executionProgressLabelEl = document.querySelector("#execution-progress-label");
+const executionProgressBarEl = document.querySelector("#execution-progress-bar");
+const nextRecommendationEl = document.querySelector("#next-recommendation");
+const adaptationNoteEl = document.querySelector("#adaptation-note");
 
 const priorityHighEl = document.querySelector("#priority-high");
 const priorityMediumEl = document.querySelector("#priority-medium");
@@ -119,7 +124,8 @@ function formatDate(value) {
 
 function sentenceCase(value) {
   if (!value) return "Unknown";
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  const cleaned = value.replace(/_/g, " ");
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 function setEmptyState(container, message) {
@@ -501,6 +507,20 @@ function updateDashboardStats() {
   statActivitiesMetaEl.textContent = hideNoise ? "Noise filtered feed" : "Showing all captured items";
 }
 
+function renderExecutionHealth(meeting) {
+  const progress = Math.max(0, Math.min(100, Number(meeting?.progress_percent || 0)));
+  const health = meeting?.execution_health || "needs_start";
+
+  executionHealthLabelEl.textContent = sentenceCase(health);
+  executionHealthLabelEl.className = `execution-health-label health-${health}`;
+  executionProgressLabelEl.textContent = `${progress}%`;
+  executionProgressBarEl.style.width = `${progress}%`;
+  executionProgressBarEl.className = `progress-fill health-${health}`;
+  nextRecommendationEl.textContent =
+    meeting?.next_recommendation || "Generate or open a plan to see the next move.";
+  adaptationNoteEl.textContent = meeting?.adaptation_note || "No execution state yet.";
+}
+
 async function fetchWatcherStatus() {
   const data = await fetchJson("/api/watcher/status");
   const enabled = Boolean(data.enabled);
@@ -633,7 +653,7 @@ function renderMeetingList(meetings) {
     const node = meetingListTemplate.content.cloneNode(true);
     node.querySelector(".meeting-list-title").textContent = meeting.title;
     node.querySelector(".meeting-list-meta").textContent =
-      `${formatDate(meeting.target_end_date)} • ${formatDateTime(meeting.created_at)}`;
+      `${sentenceCase(meeting.execution_health || "needs_start")} - ${meeting.progress_percent || 0}% - ${formatDate(meeting.target_end_date)}`;
 
     node.querySelector(".meeting-open-btn").addEventListener("click", async () => {
       const details = await fetchJson(`/api/meetings/${meeting.id}`);
@@ -667,6 +687,8 @@ function clearPlannerBoards() {
 function createPlannerActionCard(action, meetingId) {
   const fragment = plannerActionTemplate.content.cloneNode(true);
   const card = fragment.querySelector(".planner-task-card");
+  const isDone = action.status === "done";
+  card.classList.toggle("done", isDone);
   card.querySelector(".planner-task-title").textContent = action.title;
 
   const chips = card.querySelectorAll(".planner-chip");
@@ -675,33 +697,43 @@ function createPlannerActionCard(action, meetingId) {
   chips[1].classList.add(`priority-${(action.priority || "low").toLowerCase()}`);
   chips[2].textContent = action.timeline_bucket || "Later";
   chips[3].textContent = `${action.estimated_minutes} min`;
+  chips[4].textContent = `${sentenceCase(action.risk_level || "medium")} risk`;
+  chips[4].classList.add(`risk-${(action.risk_level || "medium").toLowerCase()}`);
+  chips[5].textContent = action.is_blocked ? "Blocked" : "Ready";
+  chips[5].classList.add(action.is_blocked ? "blocked" : "ready");
 
-  card.querySelector(".planner-task-body").textContent =
-    `${action.rationale}${action.due_date ? ` Due: ${action.due_date}.` : ""}`;
+  const detailParts = [action.rationale];
+  if (action.due_date) {
+    detailParts.push(`Due: ${action.due_date}.`);
+  }
+  if (action.dependency_summary) {
+    detailParts.push(`Depends on: ${action.dependency_summary}.`);
+  }
+  if (action.unblocker) {
+    detailParts.push(`Unblocker: ${action.unblocker}`);
+  }
+
+  card.querySelector(".planner-task-body").textContent = detailParts.filter(Boolean).join(" ");
 
   const btn = card.querySelector(".planner-complete-btn");
-  if (action.status === "done") {
-    btn.textContent = "Done";
-    btn.disabled = true;
-  } else {
-    btn.addEventListener("click", async () => {
-      try {
-        const updatedMeeting = await fetchJson(
-          `/api/meetings/${meetingId}/actions/${action.id}/status`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "done" })
-          }
-        );
-        renderMeetingDetails(updatedMeeting);
-        await fetchMeetings();
-      } catch (error) {
-        console.error("Mark action done failed:", error);
-        alert("Failed to update action.");
-      }
-    });
-  }
+  btn.textContent = isDone ? "Reopen" : "Mark done";
+  btn.addEventListener("click", async () => {
+    try {
+      const updatedMeeting = await fetchJson(
+        `/api/meetings/${meetingId}/actions/${action.id}/status`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: isDone ? "open" : "done" })
+        }
+      );
+      renderMeetingDetails(updatedMeeting);
+      await fetchMeetings();
+    } catch (error) {
+      console.error("Update action status failed:", error);
+      alert("Failed to update action.");
+    }
+  });
 
   return card;
 }
@@ -763,6 +795,7 @@ function renderMeetingDetails(meeting) {
   meetingDecisionsEl.textContent = meeting.decisions || "No decisions available.";
   meetingPrioritiesOverviewEl.textContent =
     meeting.priorities_overview || "No priority overview available.";
+  renderExecutionHealth(meeting);
 
   clearPlannerBoards();
 

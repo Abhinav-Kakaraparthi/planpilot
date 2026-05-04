@@ -19,6 +19,16 @@ meeting_router = APIRouter(prefix="/api/meetings", tags=["meetings"])
 planner = MeetingPlannerService()
 
 
+def refresh_meeting_execution_state(meeting: MeetingSession) -> None:
+    state = planner.adapt_plan_state(list(meeting.actions))
+    meeting.progress_percent = state.progress_percent
+    meeting.execution_health = state.execution_health
+    meeting.next_recommendation = state.next_recommendation
+    meeting.adaptation_note = state.adaptation_note
+    meeting.priorities_overview = state.priorities_overview
+    meeting.updated_at = datetime.now(timezone.utc)
+
+
 @meeting_router.post("/plan", response_model=MeetingRead)
 async def plan_meeting(payload: MeetingPlanCreate):
     plan = planner.build_plan(
@@ -52,9 +62,15 @@ async def plan_meeting(payload: MeetingPlanCreate):
                     step_order=action.step_order,
                     estimated_minutes=action.estimated_minutes,
                     is_blocked=action.is_blocked,
+                    dependency_summary=action.dependency_summary,
+                    risk_level=action.risk_level,
+                    unblocker=action.unblocker,
                 )
             )
 
+        db.flush()
+        meeting.actions
+        refresh_meeting_execution_state(meeting)
         db.commit()
         db.refresh(meeting)
 
@@ -112,6 +128,7 @@ async def update_action_status(meeting_id: int, action_id: int, payload: ActionS
 
         action.status = payload.status
         action.updated_at = datetime.now(timezone.utc)
+        refresh_meeting_execution_state(meeting)
         db.commit()
         db.refresh(meeting)
         meeting.actions

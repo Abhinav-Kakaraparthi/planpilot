@@ -24,6 +24,9 @@ class MeetingActionRead(BaseModel):
     step_order: int
     estimated_minutes: int
     is_blocked: bool
+    dependency_summary: str = ""
+    risk_level: str = "medium"
+    unblocker: str = ""
     created_at: datetime
     updated_at: datetime
 
@@ -38,6 +41,10 @@ class MeetingRead(BaseModel):
     summary: str
     decisions: str
     priorities_overview: str
+    progress_percent: int = 0
+    execution_health: str = "needs_start"
+    next_recommendation: str = ""
+    adaptation_note: str = ""
     target_end_date: Optional[str]
     created_at: datetime
     updated_at: datetime
@@ -51,6 +58,8 @@ class MeetingListItem(BaseModel):
     id: int
     title: str
     summary: str
+    progress_percent: int = 0
+    execution_health: str = "needs_start"
     target_end_date: Optional[str]
     created_at: datetime
     updated_at: datetime
