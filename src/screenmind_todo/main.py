@@ -73,6 +73,11 @@ def index() -> FileResponse:
     return FileResponse(static_dir / "index.html")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> FileResponse:
+    return FileResponse(static_dir / "favicon.svg", media_type="image/svg+xml")
+
+
 @app.post("/api/scan-once")
 async def scan_once() -> dict[str, str]:
     await watcher.scan_once(force=True)
