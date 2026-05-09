@@ -18,6 +18,7 @@ const floatingTasksBtn = document.querySelector("#floating-tasks-btn");
 const floatingRefreshBtn = document.querySelector("#floating-refresh-btn");
 const floatingOpenBtn = document.querySelector("#floating-open-btn");
 const floatingToggleBtn = document.querySelector("#floating-toggle-btn");
+const floatingCommandTextEl = document.querySelector("#floating-command-text");
 
 const clearActivitiesBtn = document.querySelector("#clear-activities-btn");
 const hideNoiseToggle = document.querySelector("#hide-noise-toggle");
@@ -79,6 +80,7 @@ const copilotTaskContextEl = document.querySelector("#copilot-task-context");
 const copilotFollowUpEl = document.querySelector("#copilot-follow-up");
 const floatingSpeakerChipEl = document.querySelector("#floating-speaker-chip");
 const floatingToneChipEl = document.querySelector("#floating-tone-chip");
+const floatingModeChipEl = document.querySelector("#floating-mode-chip");
 const floatingQuestionEl = document.querySelector("#floating-question");
 const floatingAnswerEl = document.querySelector("#floating-answer");
 const floatingScreenContextEl = document.querySelector("#floating-screen-context");
@@ -97,7 +99,7 @@ let latestMeetings = [];
 let activeView = "overview";
 let floatingCopilotMinimized = false;
 let floatingCopilotMode = "answer";
-let floatingPosition = { top: 24, right: 24 };
+let floatingPosition = { left: null, top: null };
 let dragState = null;
 
 async function fetchJson(url, options = {}) {
@@ -349,6 +351,12 @@ function getFloatingModeData() {
   return buildCopilotResponse();
 }
 
+function getFloatingModeLabel() {
+  if (floatingCopilotMode === "summary") return "Summary mode";
+  if (floatingCopilotMode === "tasks") return "Task mode";
+  return "Answer mode";
+}
+
 function updateFloatingModeButtons() {
   floatingAskBtn.classList.toggle("active", floatingCopilotMode === "answer");
   floatingSummaryBtn.classList.toggle("active", floatingCopilotMode === "summary");
@@ -371,6 +379,13 @@ function renderCopilot() {
   const floatingData = getFloatingModeData();
   floatingSpeakerChipEl.textContent = floatingData.speaker;
   floatingToneChipEl.textContent = floatingData.tone;
+  floatingModeChipEl.textContent = getFloatingModeLabel();
+  floatingCommandTextEl.textContent =
+    floatingCopilotMode === "summary"
+      ? "Summarize the meeting state"
+      : floatingCopilotMode === "tasks"
+        ? "Surface my next tasks"
+        : "What should I say next?";
   floatingQuestionEl.textContent = floatingData.question;
   floatingAnswerEl.textContent = floatingData.answer;
   floatingScreenContextEl.textContent = floatingData.screenContext;
@@ -405,28 +420,57 @@ function setFloatingCopilotMinimized(minimized) {
 }
 
 function applyFloatingPosition() {
+  if (floatingPosition.left === null || floatingPosition.top === null) {
+    floatingCopilotEl.style.left = "50%";
+    floatingCopilotEl.style.top = "";
+    floatingCopilotEl.style.bottom = "20px";
+    floatingCopilotEl.style.transform = window.innerWidth <= 1180 ? "none" : "translateX(-50%)";
+    return;
+  }
+
+  floatingCopilotEl.style.left = `${floatingPosition.left}px`;
   floatingCopilotEl.style.top = `${floatingPosition.top}px`;
-  floatingCopilotEl.style.right = `${floatingPosition.right}px`;
+  floatingCopilotEl.style.bottom = "auto";
+  floatingCopilotEl.style.transform = "none";
 }
 
-function moveFloatingCopilot(topDelta, rightDelta) {
-  const maxTop = Math.max(8, window.innerHeight - 120);
-  const maxRight = Math.max(8, window.innerWidth - 220);
+function ensureFloatingPositionInitialized() {
+  if (floatingPosition.left !== null && floatingPosition.top !== null) {
+    return;
+  }
+
+  const rect = floatingCopilotEl.getBoundingClientRect();
+  floatingPosition.left = rect.left;
+  floatingPosition.top = rect.top;
+}
+
+function moveFloatingCopilot(topDelta, leftDelta) {
+  ensureFloatingPositionInitialized();
+  const width = floatingCopilotEl.offsetWidth || 760;
+  const height = floatingCopilotEl.offsetHeight || 220;
+  const maxTop = Math.max(8, window.innerHeight - height - 8);
+  const maxLeft = Math.max(8, window.innerWidth - width - 8);
 
   floatingPosition.top = Math.min(maxTop, Math.max(8, floatingPosition.top + topDelta));
-  floatingPosition.right = Math.min(maxRight, Math.max(8, floatingPosition.right + rightDelta));
+  floatingPosition.left = Math.min(maxLeft, Math.max(8, floatingPosition.left + leftDelta));
   applyFloatingPosition();
 }
 
 function clampFloatingPosition() {
+  if (window.innerWidth <= 1180) {
+    floatingPosition.left = null;
+    floatingPosition.top = null;
+    applyFloatingPosition();
+    return;
+  }
+
+  ensureFloatingPositionInitialized();
   const width = floatingCopilotEl.offsetWidth || 360;
   const height = floatingCopilotEl.offsetHeight || 220;
   const maxTop = Math.max(8, window.innerHeight - height - 8);
   const maxLeft = Math.max(8, window.innerWidth - width - 8);
-  const left = Math.max(8, Math.min(maxLeft, window.innerWidth - floatingPosition.right - width));
-  const top = Math.max(8, Math.min(maxTop, floatingPosition.top));
-  floatingPosition.top = top;
-  floatingPosition.right = Math.max(8, window.innerWidth - left - width);
+  floatingPosition.left = Math.max(8, Math.min(maxLeft, floatingPosition.left));
+  floatingPosition.top = Math.max(8, Math.min(maxTop, floatingPosition.top));
   applyFloatingPosition();
 }
 
@@ -435,6 +479,7 @@ function startFloatingDrag(event) {
     return;
   }
 
+  ensureFloatingPositionInitialized();
   const rect = floatingCopilotEl.getBoundingClientRect();
   dragState = {
     pointerOffsetX: event.clientX - rect.left,
@@ -458,7 +503,7 @@ function onFloatingDragMove(event) {
   const top = Math.max(8, Math.min(maxTop, event.clientY - dragState.pointerOffsetY));
 
   floatingPosition.top = top;
-  floatingPosition.right = Math.max(8, window.innerWidth - left - width);
+  floatingPosition.left = left;
   applyFloatingPosition();
 }
 

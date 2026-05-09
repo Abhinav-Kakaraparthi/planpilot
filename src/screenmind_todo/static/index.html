@@ -23,7 +23,7 @@
       <div class="floating-copilot-header">
         <div class="floating-heading">
           <p class="section-kicker">Live copilot</p>
-          <h3 class="floating-copilot-title">Answer dock</h3>
+          <h3 class="floating-copilot-title">Meeting dock</h3>
         </div>
         <div class="floating-copilot-actions">
           <button id="floating-open-btn" class="secondary-btn floating-icon-btn" type="button" aria-label="Open copilot page">Open</button>
@@ -31,21 +31,28 @@
         </div>
       </div>
       <div id="floating-copilot-body" class="floating-copilot-body">
-        <div class="floating-mode-row">
-          <button id="floating-ask-btn" class="secondary-btn floating-mode-btn" type="button">Answer</button>
-          <button id="floating-summary-btn" class="secondary-btn floating-mode-btn" type="button">Summary</button>
-          <button id="floating-tasks-btn" class="secondary-btn floating-mode-btn" type="button">Tasks</button>
-          <button id="floating-refresh-btn" class="secondary-btn floating-mode-btn" type="button">Refresh</button>
+        <div class="floating-command-bar">
+          <div class="floating-command-copy">
+            <span class="floating-command-label">Prompt</span>
+            <strong id="floating-command-text" class="floating-command-text">What should I say next?</strong>
+          </div>
+          <div class="floating-command-actions">
+            <button id="floating-ask-btn" class="secondary-btn floating-mode-btn" type="button">Answer</button>
+            <button id="floating-summary-btn" class="secondary-btn floating-mode-btn" type="button">Summary</button>
+            <button id="floating-tasks-btn" class="secondary-btn floating-mode-btn" type="button">Tasks</button>
+            <button id="floating-refresh-btn" class="secondary-btn floating-mode-btn" type="button">Refresh</button>
+          </div>
         </div>
-        <div class="floating-chip-row">
+        <div class="floating-mode-row">
           <span id="floating-speaker-chip" class="badge muted">No speaker</span>
           <span id="floating-tone-chip" class="badge">Concise</span>
+          <span id="floating-mode-chip" class="badge">Answer mode</span>
         </div>
-        <div class="floating-section">
+        <div class="floating-section compact">
           <p class="section-kicker">Question</p>
           <p id="floating-question" class="floating-copy empty">No meeting question detected yet.</p>
         </div>
-        <div class="floating-section floating-answer-section">
+        <div class="floating-section floating-answer-section compact">
           <p class="section-kicker">Suggested answer</p>
           <p id="floating-answer" class="floating-answer empty">Load a meeting plan to generate a response.</p>
         </div>
@@ -60,9 +67,9 @@
           </div>
         </div>
         <div class="floating-shortcuts compact">
-          <span class="floating-shortcut-chip">Drag header to move</span>
-          <span class="floating-shortcut-chip">/ to focus</span>
-          <span class="floating-shortcut-chip">Arrows to move</span>
+          <span class="floating-shortcut-chip">/ focus dock</span>
+          <span class="floating-shortcut-chip">drag to move</span>
+          <span class="floating-shortcut-chip">1 2 3 switch modes</span>
         </div>
       </div>
     </div>
