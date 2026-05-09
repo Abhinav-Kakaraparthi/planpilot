@@ -25,10 +25,11 @@ class TodoTask(Base):
     title: Mapped[str] = mapped_column(String(255), index=True)
     reason: Mapped[str] = mapped_column(Text, default="")
     source_window: Mapped[str] = mapped_column(String(500), default="")
+    priority: Mapped[str] = mapped_column(String(20), default="medium", index=True)
+    timeline_bucket: Mapped[str] = mapped_column(String(64), default="This week", index=True)
     status: Mapped[str] = mapped_column(String(50), default="open", index=True)
     confidence: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     auto_created: Mapped[bool] = mapped_column(Boolean, default=True)
-

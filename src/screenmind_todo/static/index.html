@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PlanPilot</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="stylesheet" href="/static/styles.css?v=11" />
+    <link rel="stylesheet" href="/static/styles.css?v=13" />
   </head>
   <body>
     <div class="app-backdrop">
@@ -103,16 +103,16 @@
 
         <div class="sidebar-panel watcher-panel">
           <div class="section-heading">
-            <p class="sidebar-label">Watcher control</p>
-            <span id="hero-status-pill" class="status-pill live">Live</span>
+            <p class="sidebar-label">Session mode</p>
+            <span id="hero-status-pill" class="status-pill paused">Idle</span>
           </div>
-          <p id="watcher-status" class="watcher-status">Watcher: ON</p>
+          <p id="watcher-status" class="watcher-status">Session idle</p>
           <p class="sidebar-note">
-            Manage capture without letting passive OCR dominate the product. Session mode and transcript-first flow are next.
+            Capture only while you are in a focused work session. This keeps the demo clean and the signal quality high.
           </p>
           <div class="sidebar-actions">
             <button id="scan-now" type="button">Scan now</button>
-            <button id="watcher-toggle" class="secondary-btn" type="button">Stop watcher</button>
+            <button id="watcher-toggle" class="secondary-btn" type="button">Start session</button>
           </div>
         </div>
 
@@ -568,12 +568,63 @@
 
     <template id="task-template">
       <article class="signal-task-card">
-        <div class="signal-task-head">
-          <h4 class="card-title"></h4>
-          <span class="task-status-pill"></span>
+        <div class="signal-task-view">
+          <div class="signal-task-head">
+            <h4 class="card-title"></h4>
+            <span class="task-status-pill"></span>
+          </div>
+          <div class="task-chip-row">
+            <span class="task-priority-chip"></span>
+            <span class="task-timeline-chip"></span>
+          </div>
+          <p class="card-meta"></p>
+          <p class="card-body"></p>
+          <div class="task-actions">
+            <button class="task-edit-btn secondary-btn utility-btn" type="button">Edit</button>
+            <button class="task-complete-btn secondary-btn utility-btn" type="button">Toggle done</button>
+          </div>
         </div>
-        <p class="card-meta"></p>
-        <p class="card-body"></p>
+        <form class="task-edit-form hidden">
+          <label class="field compact-field">
+            <span>Title</span>
+            <input class="task-title-input" type="text" />
+          </label>
+          <div class="task-edit-grid">
+            <label class="field compact-field">
+              <span>Priority</span>
+              <select class="task-priority-input">
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+            <label class="field compact-field">
+              <span>Timeline</span>
+              <select class="task-timeline-input">
+                <option value="Today">Today</option>
+                <option value="Tomorrow">Tomorrow</option>
+                <option value="This week">This week</option>
+                <option value="Next week">Next week</option>
+                <option value="Later">Later</option>
+              </select>
+            </label>
+          </div>
+          <label class="field compact-field">
+            <span>Status</span>
+            <select class="task-status-input">
+              <option value="open">Open</option>
+              <option value="done">Done</option>
+            </select>
+          </label>
+          <label class="field compact-field">
+            <span>Reason</span>
+            <textarea class="task-reason-input" rows="4"></textarea>
+          </label>
+          <div class="task-actions">
+            <button class="task-save-btn" type="submit">Save</button>
+            <button class="task-cancel-btn secondary-btn utility-btn" type="button">Cancel</button>
+          </div>
+        </form>
       </article>
     </template>
 
@@ -586,6 +637,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=11"></script>
+    <script src="/static/app.js?v=13"></script>
   </body>
 </html>

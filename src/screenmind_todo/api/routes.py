@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, desc, select
 
 from screenmind_todo.db import SessionLocal
@@ -29,9 +29,19 @@ NOISE_TERMS = [
 
 
 class TaskCreatePayload(BaseModel):
-    title: str
+    title: str = Field(min_length=1)
     confidence: int = 100
     reason: str = "Manually added by user"
+    priority: str = Field(default="medium", pattern="^(high|medium|low)$")
+    timeline_bucket: str = "This week"
+
+
+class TaskUpdatePayload(BaseModel):
+    title: str = Field(min_length=1)
+    priority: str = Field(pattern="^(high|medium|low)$")
+    timeline_bucket: str = Field(min_length=1)
+    status: str = Field(pattern="^(open|done)$")
+    reason: str = Field(min_length=1)
 
 
 class TaskReadPayload(BaseModel):
@@ -39,6 +49,8 @@ class TaskReadPayload(BaseModel):
     title: str
     reason: str
     source_window: str
+    priority: str
+    timeline_bucket: str
     status: str
     confidence: int
     created_at: datetime
@@ -66,6 +78,12 @@ class ActivityReadPayload(BaseModel):
 class DashboardPayload(BaseModel):
     tasks: List[TaskReadPayload]
     activities: List[ActivityReadPayload]
+
+
+class SessionStatusPayload(BaseModel):
+    active: bool
+    mode: str
+    label: str
 
 
 def _is_noisy_activity(activity: ActivityEvent) -> bool:
@@ -114,11 +132,34 @@ def create_task(payload: TaskCreatePayload) -> TodoTask:
             title=payload.title,
             reason=payload.reason,
             source_window="Manual",
+            priority=payload.priority,
+            timeline_bucket=payload.timeline_bucket,
             status="open",
             confidence=payload.confidence,
             auto_created=False,
         )
         db.add(task)
+        db.commit()
+        db.refresh(task)
+        return task
+
+
+@router.put("/tasks/{task_id}", response_model=TaskReadPayload)
+def update_task(task_id: int, payload: TaskUpdatePayload) -> TodoTask:
+    with SessionLocal() as db:
+        task = db.execute(
+            select(TodoTask).where(TodoTask.id == task_id)
+        ).scalar_one_or_none()
+
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        task.title = payload.title.strip()
+        task.priority = payload.priority
+        task.timeline_bucket = payload.timeline_bucket.strip()
+        task.status = payload.status
+        task.reason = payload.reason.strip()
+        task.completed_at = datetime.utcnow() if payload.status == "done" else None
         db.commit()
         db.refresh(task)
         return task

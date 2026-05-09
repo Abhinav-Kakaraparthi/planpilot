@@ -49,7 +49,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -78,7 +79,8 @@ button:disabled {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   border: 1px solid rgba(29, 48, 56, 0.12);
   border-radius: 18px;
@@ -90,7 +92,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: rgba(191, 106, 61, 0.42);
   box-shadow: 0 0 0 4px rgba(191, 106, 61, 0.12);
   background: #fffdfa;
@@ -1068,6 +1071,88 @@ textarea {
   gap: 12px;
 }
 
+.signal-task-view,
+.task-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.signal-task-view.is-done .card-title,
+.signal-task-view.is-done .card-body {
+  opacity: 0.7;
+}
+
+.signal-task-view.is-done .card-title {
+  text-decoration: line-through;
+}
+
+.task-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-priority-chip,
+.task-timeline-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.task-priority-chip.priority-high {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.task-priority-chip.priority-medium {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.task-priority-chip.priority-low {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.task-timeline-chip {
+  background: rgba(29, 48, 56, 0.08);
+  color: var(--muted-strong);
+}
+
+.task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.task-actions button {
+  width: auto;
+}
+
+.task-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.compact-field span {
+  font-size: 0.82rem;
+}
+
+.compact-field textarea {
+  min-height: 120px;
+}
+
+.hidden {
+  display: none !important;
+}
+
 .planner-task-top,
 .meeting-list-item {
   align-items: flex-start;
@@ -1317,6 +1402,7 @@ textarea {
   .floating-command-bar,
   .mini-columns,
   .form-split,
+  .task-edit-grid,
   .priority-columns,
   .timeline-board,
   .summary-split {

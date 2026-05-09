@@ -1,147 +1,202 @@
-const watcherStatusEl = document.querySelector("#watcher-status");
-const watcherToggleBtn = document.querySelector("#watcher-toggle");
-const scanNowBtn = document.querySelector("#scan-now");
-const heroStatusPillEl = document.querySelector("#hero-status-pill");
+const state = {
+  includeNoise: false,
+  activityCollapsed: false,
+  meetings: [],
+  activeMeeting: null,
+  dashboard: { tasks: [], activities: [] },
+  session: { active: false, mode: "session", label: "Session idle" },
+  activeView: "overview",
+  copilotMode: "answer",
+  floatingMinimized: false,
+  floatingPosition: null,
+};
 
-const tasksEl = document.querySelector("#tasks");
-const activitiesEl = document.querySelector("#activities");
-const activityPreviewEl = document.querySelector("#activity-preview");
-const taskTemplate = document.querySelector("#task-template");
-const activityTemplate = document.querySelector("#activity-template");
-const refreshCopilotBtn = document.querySelector("#refresh-copilot-btn");
-const floatingCopilotEl = document.querySelector("#floating-copilot");
-const floatingCopilotHeaderEl = document.querySelector(".floating-copilot-header");
-const floatingCopilotBodyEl = document.querySelector("#floating-copilot-body");
-const floatingAskBtn = document.querySelector("#floating-ask-btn");
-const floatingSummaryBtn = document.querySelector("#floating-summary-btn");
-const floatingTasksBtn = document.querySelector("#floating-tasks-btn");
-const floatingRefreshBtn = document.querySelector("#floating-refresh-btn");
-const floatingOpenBtn = document.querySelector("#floating-open-btn");
-const floatingToggleBtn = document.querySelector("#floating-toggle-btn");
-const floatingCommandTextEl = document.querySelector("#floating-command-text");
+const el = {
+  navButtons: Array.from(document.querySelectorAll("[data-view-target]")),
+  shortcutViewButtons: Array.from(document.querySelectorAll("[data-shortcut-view]")),
+  views: Array.from(document.querySelectorAll(".view-panel")),
+  watcherStatus: document.querySelector("#watcher-status"),
+  heroStatusPill: document.querySelector("#hero-status-pill"),
+  watcherToggle: document.querySelector("#watcher-toggle"),
+  scanNow: document.querySelector("#scan-now"),
+  statOpenTasks: document.querySelector("#stat-open-tasks"),
+  statMeetings: document.querySelector("#stat-meetings"),
+  statActivities: document.querySelector("#stat-activities"),
+  statActivitiesMeta: document.querySelector("#stat-activities-meta"),
+  tasks: document.querySelector("#tasks"),
+  activities: document.querySelector("#activities"),
+  activitiesContainer: document.querySelector("#activities-container"),
+  activityPreview: document.querySelector("#activity-preview"),
+  hideNoiseToggle: document.querySelector("#hide-noise-toggle"),
+  clearActivitiesBtn: document.querySelector("#clear-activities-btn"),
+  activityCollapseBtn: document.querySelector("#activity-collapse-btn"),
+  activityHeaderToggle: document.querySelector("#activity-header-toggle"),
+  meetingForm: document.querySelector("#meeting-form"),
+  meetingTitle: document.querySelector("#meeting-title"),
+  meetingTranscript: document.querySelector("#meeting-transcript"),
+  meetingTargetDate: document.querySelector("#meeting-target-date"),
+  meetingList: document.querySelector("#meeting-list"),
+  meetingIdBadge: document.querySelector("#meeting-id-badge"),
+  meetingSummary: document.querySelector("#meeting-summary"),
+  meetingDecisions: document.querySelector("#meeting-decisions"),
+  meetingPrioritiesOverview: document.querySelector("#meeting-priorities-overview"),
+  executionHealthLabel: document.querySelector("#execution-health-label"),
+  executionProgressLabel: document.querySelector("#execution-progress-label"),
+  executionProgressBar: document.querySelector("#execution-progress-bar"),
+  nextRecommendation: document.querySelector("#next-recommendation"),
+  adaptationNote: document.querySelector("#adaptation-note"),
+  actionCount: document.querySelector("#action-count"),
+  priorityHighPreview: document.querySelector("#priority-high-preview"),
+  priorityMediumPreview: document.querySelector("#priority-medium-preview"),
+  priorityLowPreview: document.querySelector("#priority-low-preview"),
+  priorityHigh: document.querySelector("#priority-high"),
+  priorityMedium: document.querySelector("#priority-medium"),
+  priorityLow: document.querySelector("#priority-low"),
+  bucketToday: document.querySelector("#bucket-today"),
+  bucketTomorrow: document.querySelector("#bucket-tomorrow"),
+  bucketThisWeek: document.querySelector("#bucket-this-week"),
+  bucketNextWeek: document.querySelector("#bucket-next-week"),
+  bucketLater: document.querySelector("#bucket-later"),
+  copilotSpeakerBadge: document.querySelector("#copilot-speaker-badge"),
+  copilotQuestion: document.querySelector("#copilot-question"),
+  copilotAnswer: document.querySelector("#copilot-answer"),
+  copilotMeetingTitle: document.querySelector("#copilot-meeting-title"),
+  copilotScreenSignal: document.querySelector("#copilot-screen-signal"),
+  copilotTone: document.querySelector("#copilot-tone"),
+  copilotPoints: document.querySelector("#copilot-points"),
+  copilotScreenContext: document.querySelector("#copilot-screen-context"),
+  copilotTaskContext: document.querySelector("#copilot-task-context"),
+  copilotFollowUp: document.querySelector("#copilot-follow-up"),
+  refreshCopilotBtn: document.querySelector("#refresh-copilot-btn"),
+  floatingCopilot: document.querySelector("#floating-copilot"),
+  floatingHeader: document.querySelector(".floating-copilot-header"),
+  floatingBody: document.querySelector("#floating-copilot-body"),
+  floatingOpenBtn: document.querySelector("#floating-open-btn"),
+  floatingToggleBtn: document.querySelector("#floating-toggle-btn"),
+  floatingAskBtn: document.querySelector("#floating-ask-btn"),
+  floatingSummaryBtn: document.querySelector("#floating-summary-btn"),
+  floatingTasksBtn: document.querySelector("#floating-tasks-btn"),
+  floatingRefreshBtn: document.querySelector("#floating-refresh-btn"),
+  floatingCommandText: document.querySelector("#floating-command-text"),
+  floatingSpeakerChip: document.querySelector("#floating-speaker-chip"),
+  floatingToneChip: document.querySelector("#floating-tone-chip"),
+  floatingModeChip: document.querySelector("#floating-mode-chip"),
+  floatingQuestion: document.querySelector("#floating-question"),
+  floatingAnswer: document.querySelector("#floating-answer"),
+  floatingScreenContext: document.querySelector("#floating-screen-context"),
+  floatingFollowUp: document.querySelector("#floating-follow-up"),
+  templates: {
+    plannerAction: document.querySelector("#planner-action-template"),
+    plannerPreview: document.querySelector("#planner-preview-template"),
+    meetingList: document.querySelector("#meeting-list-template"),
+    task: document.querySelector("#task-template"),
+    activity: document.querySelector("#activity-template"),
+  },
+};
 
-const clearActivitiesBtn = document.querySelector("#clear-activities-btn");
-const hideNoiseToggle = document.querySelector("#hide-noise-toggle");
+const viewIds = ["overview", "planner", "boards", "copilot", "signals"];
+const timelineTargets = {
+  today: el.bucketToday,
+  tomorrow: el.bucketTomorrow,
+  "this week": el.bucketThisWeek,
+  "next week": el.bucketNextWeek,
+  later: el.bucketLater,
+};
 
-const meetingForm = document.querySelector("#meeting-form");
-const meetingTitleInput = document.querySelector("#meeting-title");
-const meetingTranscriptInput = document.querySelector("#meeting-transcript");
-const meetingTargetDateInput = document.querySelector("#meeting-target-date");
-const generatePlanBtn = document.querySelector("#generate-plan-btn");
+function sentenceCase(value) {
+  if (!value) {
+    return "";
+  }
+  return value
+    .replace(/[_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
-const meetingSummaryEl = document.querySelector("#meeting-summary");
-const meetingDecisionsEl = document.querySelector("#meeting-decisions");
-const meetingPrioritiesOverviewEl = document.querySelector("#meeting-priorities-overview");
-const meetingIdBadgeEl = document.querySelector("#meeting-id-badge");
-const executionHealthLabelEl = document.querySelector("#execution-health-label");
-const executionProgressLabelEl = document.querySelector("#execution-progress-label");
-const executionProgressBarEl = document.querySelector("#execution-progress-bar");
-const nextRecommendationEl = document.querySelector("#next-recommendation");
-const adaptationNoteEl = document.querySelector("#adaptation-note");
+function healthLabel(value) {
+  return sentenceCase(value || "needs_start");
+}
 
-const priorityHighEl = document.querySelector("#priority-high");
-const priorityMediumEl = document.querySelector("#priority-medium");
-const priorityLowEl = document.querySelector("#priority-low");
+function formatTimestamp(value) {
+  if (!value) {
+    return "No timestamp";
+  }
 
-const bucketTodayEl = document.querySelector("#bucket-today");
-const bucketTomorrowEl = document.querySelector("#bucket-tomorrow");
-const bucketThisWeekEl = document.querySelector("#bucket-this-week");
-const bucketNextWeekEl = document.querySelector("#bucket-next-week");
-const bucketLaterEl = document.querySelector("#bucket-later");
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
-const priorityHighPreviewEl = document.querySelector("#priority-high-preview");
-const priorityMediumPreviewEl = document.querySelector("#priority-medium-preview");
-const priorityLowPreviewEl = document.querySelector("#priority-low-preview");
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
-const meetingListEl = document.querySelector("#meeting-list");
-const meetingListTemplate = document.querySelector("#meeting-list-template");
-const plannerActionTemplate = document.querySelector("#planner-action-template");
-const plannerPreviewTemplate = document.querySelector("#planner-preview-template");
-const actionCountEl = document.querySelector("#action-count");
+function truncate(value, maxLength = 180) {
+  if (!value) {
+    return "";
+  }
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
+}
 
-const activityContainer = document.querySelector("#activities-container");
-const activityCollapseBtn = document.querySelector("#activity-collapse-btn");
-const activityHeaderToggle = document.querySelector("#activity-header-toggle");
-
-const statOpenTasksEl = document.querySelector("#stat-open-tasks");
-const statMeetingsEl = document.querySelector("#stat-meetings");
-const statActivitiesEl = document.querySelector("#stat-activities");
-const statActivitiesMetaEl = document.querySelector("#stat-activities-meta");
-
-const copilotSpeakerBadgeEl = document.querySelector("#copilot-speaker-badge");
-const copilotQuestionEl = document.querySelector("#copilot-question");
-const copilotAnswerEl = document.querySelector("#copilot-answer");
-const copilotMeetingTitleEl = document.querySelector("#copilot-meeting-title");
-const copilotScreenSignalEl = document.querySelector("#copilot-screen-signal");
-const copilotToneEl = document.querySelector("#copilot-tone");
-const copilotPointsEl = document.querySelector("#copilot-points");
-const copilotScreenContextEl = document.querySelector("#copilot-screen-context");
-const copilotTaskContextEl = document.querySelector("#copilot-task-context");
-const copilotFollowUpEl = document.querySelector("#copilot-follow-up");
-const floatingSpeakerChipEl = document.querySelector("#floating-speaker-chip");
-const floatingToneChipEl = document.querySelector("#floating-tone-chip");
-const floatingModeChipEl = document.querySelector("#floating-mode-chip");
-const floatingQuestionEl = document.querySelector("#floating-question");
-const floatingAnswerEl = document.querySelector("#floating-answer");
-const floatingScreenContextEl = document.querySelector("#floating-screen-context");
-const floatingFollowUpEl = document.querySelector("#floating-follow-up");
-
-const navButtons = [...document.querySelectorAll(".nav-pill[data-view-target]")];
-const shortcutViewButtons = [...document.querySelectorAll("[data-shortcut-view]")];
-const viewPanels = [...document.querySelectorAll(".view-panel")];
-
-let activeMeetingId = null;
-let activeMeetingDetails = null;
-let hideNoise = true;
-let activityCollapsed = false;
-let latestDashboard = { tasks: [], activities: [] };
-let latestMeetings = [];
-let activeView = "overview";
-let floatingCopilotMinimized = false;
-let floatingCopilotMode = "answer";
-let floatingPosition = { left: null, top: null };
-let dragState = null;
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${url}`);
+    const message = await response.text();
+    throw new Error(message || `Request failed: ${response.status}`);
   }
+
   return response.json();
 }
 
-function formatDateTime(value) {
-  if (!value) return "No timestamp";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+function setActiveView(viewName) {
+  if (!viewIds.includes(viewName)) {
+    return;
+  }
+
+  state.activeView = viewName;
+  el.navButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.viewTarget === viewName);
+  });
+
+  el.views.forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `view-${viewName}`);
+  });
 }
 
-function formatDate(value) {
-  if (!value) return "No target date";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+function setEmpty(container, message) {
+  container.innerHTML = `<p class="body-text empty">${message}</p>`;
 }
 
-function sentenceCase(value) {
-  if (!value) return "Unknown";
-  const cleaned = value.replace(/_/g, " ");
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+function normalizeBucket(bucket) {
+  const value = (bucket || "Later").trim().toLowerCase();
+  if (value === "this week" || value === "today" || value === "tomorrow" || value === "next week" || value === "later") {
+    return value;
+  }
+  return "later";
 }
 
-function setEmptyState(container, message) {
-  container.innerHTML = `<p class="empty">${message}</p>`;
-}
-
-function truncateText(value, maxLength = 160) {
-  if (!value) return "";
-  return value.length > maxLength ? `${value.slice(0, maxLength).trim()}...` : value;
-}
-
-function extractLatestQuestion(transcript) {
+function latestQuestionFromTranscript(transcript) {
   if (!transcript) {
-    return null;
+    return { speaker: "No speaker", question: "" };
   }
 
   const lines = transcript
@@ -155,946 +210,759 @@ function extractLatestQuestion(transcript) {
       continue;
     }
 
-    const speakerMatch = line.match(/^([A-Za-z][A-Za-z .'-]{1,40}):\s*(.+)$/);
-    if (speakerMatch) {
-      return {
-        speaker: speakerMatch[1].trim(),
-        question: speakerMatch[2].trim()
-      };
+    const match = line.match(/^([^:]+):\s*(.+)$/);
+    if (match) {
+      return { speaker: match[1].trim(), question: match[2].trim() };
     }
 
-    return {
-      speaker: "Meeting participant",
-      question: line
-    };
+    return { speaker: "Meeting", question: line };
   }
 
-  const sentences = transcript
-    .split(/(?<=[.?!])\s+/)
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
-
-  const fallbackQuestion = [...sentences].reverse().find((sentence) => sentence.includes("?"));
-  if (!fallbackQuestion) {
-    return null;
-  }
-
-  return {
-    speaker: "Meeting participant",
-    question: fallbackQuestion
-  };
+  return { speaker: "No speaker", question: "" };
 }
 
 function summarizeScreenSignal() {
-  const latestActivity = latestDashboard.activities[0];
-  if (!latestActivity) {
-    return "No recent activity captured.";
+  const [activity] = state.dashboard.activities || [];
+  if (!activity) {
+    return "No recent screen activity.";
   }
 
-  return truncateText(
-    latestActivity.inferred_summary || latestActivity.window_title || latestActivity.ocr_text || "Screen activity",
-    140
-  );
+  return truncate(activity.inferred_summary || activity.ocr_text || `${activity.app_name} ${activity.window_title}`, 120);
 }
 
 function summarizeTaskSignal() {
-  const openTasks = latestDashboard.tasks.filter((task) => (task.status || "").toLowerCase() !== "done");
+  const openTasks = (state.dashboard.tasks || []).filter((task) => task.status !== "done");
   if (!openTasks.length) {
-    return "No open watcher tasks available.";
+    return "No open tasks available.";
   }
 
-  return openTasks
-    .slice(0, 2)
-    .map((task) => task.title)
-    .join(" | ");
+  const preview = openTasks.slice(0, 2).map((task) => task.title).join("; ");
+  return truncate(preview, 120);
 }
 
-function buildCopilotResponse() {
-  if (!activeMeetingDetails) {
-    return {
-      speaker: "No meeting loaded",
-      question: "No meeting question detected yet.",
-      answer: "Open a saved meeting or generate a meeting plan to get a suggested answer.",
-      meetingTitle: "None loaded",
-      screenSignal: summarizeScreenSignal(),
-      tone: "Concise",
-      points: [],
-      screenContext: summarizeScreenSignal(),
-      taskContext: summarizeTaskSignal(),
-      followUp: "Load a meeting plan to generate the next-response guidance."
-    };
-  }
-
-  const latestQuestion = extractLatestQuestion(activeMeetingDetails.transcript);
-  const openActions = (activeMeetingDetails.actions || []).filter(
-    (action) => (action.status || "").toLowerCase() !== "done"
-  );
-  const nextAction = openActions[0];
+function buildCopilotPayload(mode = state.copilotMode) {
+  const meeting = state.activeMeeting;
+  const { speaker, question } = latestQuestionFromTranscript(meeting?.transcript || "");
   const screenSignal = summarizeScreenSignal();
   const taskSignal = summarizeTaskSignal();
-  const meetingTitle = activeMeetingDetails.title || "Untitled meeting";
-  const speaker = latestQuestion?.speaker || "Meeting participant";
-  const question = latestQuestion?.question || "No explicit question detected in the transcript.";
-  const tone = nextAction?.priority?.toLowerCase() === "high" ? "Direct" : "Calm";
+  const nextRecommendation = meeting?.next_recommendation || "Use the latest signal and move to the next concrete action.";
+  const tone = mode === "summary" ? "Executive" : mode === "tasks" ? "Directive" : "Concise";
 
-  const answerParts = [];
-  if (latestQuestion) {
-    answerParts.push(`I would answer ${speaker} by grounding the response in the current plan for ${meetingTitle}.`);
-  } else {
-    answerParts.push(`I would give a short progress update tied to the plan for ${meetingTitle}.`);
-  }
-  if (nextAction) {
-    answerParts.push(
-      `The clearest next step is ${nextAction.title.toLowerCase()}, which is currently ${nextAction.timeline_bucket.toLowerCase()} and marked ${nextAction.priority.toLowerCase()} priority.`
-    );
-  }
-  if (screenSignal && screenSignal !== "No recent activity captured.") {
-    answerParts.push(`Your screen suggests the immediate context is ${screenSignal.toLowerCase()}.`);
-  }
-  answerParts.push("Close by confirming the next owner, timing, and what decision you need from the room.");
+  let answer = "Load a meeting plan to generate a response.";
+  let followUp = "Open a meeting plan to unlock the copilot context.";
+  let points = [];
 
-  const points = [
-    {
-      title: "Anchor on the plan",
-      body: activeMeetingDetails.summary || "Use the meeting summary to restate the goal before answering."
-    },
-    nextAction
-      ? {
-          title: "Lead with the next action",
-          body: `${nextAction.title} is the strongest concrete item to mention next.`
-        }
-      : null,
-    {
-      title: "Use current screen context",
-      body: screenSignal
-    },
-    {
-      title: "Reference live workload",
-      body: taskSignal
+  if (meeting) {
+    if (mode === "summary") {
+      answer = truncate(
+        `${meeting.summary} Right now the plan health is ${healthLabel(meeting.execution_health).toLowerCase()} and the next move is ${nextRecommendation}`,
+        260,
+      );
+      followUp = meeting.adaptation_note || nextRecommendation;
+      points = [
+        "Summarize the outcome first.",
+        "Call out the current execution health.",
+        "Finish with the recommended next move.",
+      ];
+    } else if (mode === "tasks") {
+      const tasks = meeting.actions.slice(0, 3).map((action) => `${action.title} (${sentenceCase(action.timeline_bucket)})`);
+      answer = tasks.length
+        ? `Focus the room on these next actions: ${tasks.join("; ")}.`
+        : "No saved action items yet. Generate a plan from a transcript first.";
+      followUp = "Ask whether the room agrees on owners and due windows.";
+      points = [
+        "Name the first action clearly.",
+        "Confirm owner and timeline.",
+        "Check for blockers before you move on.",
+      ];
+    } else {
+      answer = truncate(
+        [
+          question ? `Answer the question directly: ${question}` : "Lead with the core product point.",
+          meeting.summary,
+          `Ground the response in the current signal: ${screenSignal}`,
+        ].join(" "),
+        280,
+      );
+      followUp = meeting.next_recommendation || "Close by proposing the next concrete step.";
+      points = [
+        "State the product difference in one sentence.",
+        "Connect it to the current screen or work signal.",
+        "End with the next concrete execution step.",
+      ];
     }
-  ].filter(Boolean);
+  }
 
   return {
     speaker,
-    question,
-    answer: answerParts.join(" "),
-    meetingTitle,
-    screenSignal,
+    question: question || "No meeting question detected yet.",
+    answer,
     tone,
+    followUp,
     points,
-    screenContext: screenSignal,
-    taskContext: taskSignal,
-    followUp: nextAction
-      ? `Finish by asking for confirmation on ${nextAction.title.toLowerCase()} and whether the due timing still holds.`
-      : "Ask whether the room wants a concrete next action or a decision summary."
+    screenSignal,
+    taskSignal,
+    mode,
+    meetingTitle: meeting?.title || "None loaded",
   };
 }
 
-function buildSummaryModeResponse() {
-  if (!activeMeetingDetails) {
-    return {
-      speaker: "Summary mode",
-      question: "No meeting loaded.",
-      answer: "Generate or open a meeting to get a concise summary here.",
-      tone: "Brief",
-      screenContext: summarizeScreenSignal(),
-      followUp: "Open a meeting plan first."
-    };
-  }
-
-  return {
-    speaker: "Summary mode",
-    question: "Current meeting state",
-    answer: truncateText(activeMeetingDetails.summary || "No summary available.", 280),
-    tone: "Brief",
-    screenContext: summarizeScreenSignal(),
-    followUp: truncateText(activeMeetingDetails.priorities_overview || "No follow-up yet.", 120)
-  };
+function renderSessionStatus() {
+  const active = Boolean(state.session.active);
+  el.heroStatusPill.textContent = active ? "Live" : "Idle";
+  el.heroStatusPill.className = `status-pill ${active ? "live" : "paused"}`;
+  el.watcherStatus.textContent = state.session.label || (active ? "Live session" : "Session idle");
+  el.watcherToggle.textContent = active ? "Stop session" : "Start session";
 }
 
-function buildTasksModeResponse() {
-  const tasks = latestDashboard.tasks
-    .filter((task) => (task.status || "").toLowerCase() !== "done")
-    .slice(0, 3)
-    .map((task) => task.title);
+function renderStats() {
+  const tasks = state.dashboard.tasks || [];
+  const activities = state.dashboard.activities || [];
+  const meetings = state.meetings || [];
+
+  el.statOpenTasks.textContent = `${tasks.filter((task) => task.status !== "done").length}`;
+  el.statMeetings.textContent = `${meetings.length}`;
+  el.statActivities.textContent = `${activities.length}`;
+  el.statActivitiesMeta.textContent = state.includeNoise ? "Full feed" : "Noise filtered feed";
+}
+
+function renderTaskList() {
+  const tasks = state.dashboard.tasks || [];
+  el.tasks.innerHTML = "";
 
   if (!tasks.length) {
-    return {
-      speaker: "Task mode",
-      question: "No open watcher tasks.",
-      answer: "There are no open watcher tasks right now. Use Create tasks after a meeting plan or fresh screen scan.",
-      tone: "Actionable",
-      screenContext: summarizeScreenSignal(),
-      followUp: "Run a scan or generate a meeting plan."
-    };
-  }
-
-  return {
-    speaker: "Task mode",
-    question: "Top actions to push next",
-    answer: tasks.map((task, index) => `${index + 1}. ${task}`).join(" "),
-    tone: "Actionable",
-    screenContext: summarizeScreenSignal(),
-    followUp: "Pick one task and confirm owner plus deadline."
-  };
-}
-
-function getFloatingModeData() {
-  if (floatingCopilotMode === "summary") {
-    return buildSummaryModeResponse();
-  }
-
-  if (floatingCopilotMode === "tasks") {
-    return buildTasksModeResponse();
-  }
-
-  return buildCopilotResponse();
-}
-
-function getFloatingModeLabel() {
-  if (floatingCopilotMode === "summary") return "Summary mode";
-  if (floatingCopilotMode === "tasks") return "Task mode";
-  return "Answer mode";
-}
-
-function updateFloatingModeButtons() {
-  floatingAskBtn.classList.toggle("active", floatingCopilotMode === "answer");
-  floatingSummaryBtn.classList.toggle("active", floatingCopilotMode === "summary");
-  floatingTasksBtn.classList.toggle("active", floatingCopilotMode === "tasks");
-}
-
-function renderCopilot() {
-  const data = buildCopilotResponse();
-
-  copilotSpeakerBadgeEl.textContent = data.speaker;
-  copilotQuestionEl.textContent = data.question;
-  copilotAnswerEl.textContent = data.answer;
-  copilotMeetingTitleEl.textContent = data.meetingTitle;
-  copilotScreenSignalEl.textContent = data.screenSignal;
-  copilotToneEl.textContent = data.tone;
-  copilotScreenContextEl.textContent = data.screenContext;
-  copilotTaskContextEl.textContent = data.taskContext;
-  copilotFollowUpEl.textContent = data.followUp;
-
-  const floatingData = getFloatingModeData();
-  floatingSpeakerChipEl.textContent = floatingData.speaker;
-  floatingToneChipEl.textContent = floatingData.tone;
-  floatingModeChipEl.textContent = getFloatingModeLabel();
-  floatingCommandTextEl.textContent =
-    floatingCopilotMode === "summary"
-      ? "Summarize the meeting state"
-      : floatingCopilotMode === "tasks"
-        ? "Surface my next tasks"
-        : "What should I say next?";
-  floatingQuestionEl.textContent = floatingData.question;
-  floatingAnswerEl.textContent = floatingData.answer;
-  floatingScreenContextEl.textContent = floatingData.screenContext;
-  floatingFollowUpEl.textContent = floatingData.followUp;
-  updateFloatingModeButtons();
-
-  copilotPointsEl.innerHTML = "";
-  if (!data.points.length) {
-    setEmptyState(copilotPointsEl, "No talking points yet.");
-    return;
-  }
-
-  data.points.forEach((point) => {
-    const card = document.createElement("article");
-    card.className = "copilot-point-card";
-    card.innerHTML = `
-      <h4 class="copilot-point-title">${point.title}</h4>
-      <p class="copilot-point-body">${point.body}</p>
-    `;
-    copilotPointsEl.appendChild(card);
-  });
-}
-
-function setFloatingCopilotMinimized(minimized) {
-  floatingCopilotMinimized = minimized;
-  floatingCopilotEl.classList.toggle("minimized", minimized);
-  floatingToggleBtn.textContent = minimized ? "Show" : "Hide";
-
-  if (floatingCopilotBodyEl) {
-    floatingCopilotBodyEl.setAttribute("aria-hidden", minimized ? "true" : "false");
-  }
-}
-
-function applyFloatingPosition() {
-  if (floatingPosition.left === null || floatingPosition.top === null) {
-    floatingCopilotEl.style.left = "50%";
-    floatingCopilotEl.style.top = "";
-    floatingCopilotEl.style.bottom = "20px";
-    floatingCopilotEl.style.transform = window.innerWidth <= 1180 ? "none" : "translateX(-50%)";
-    return;
-  }
-
-  floatingCopilotEl.style.left = `${floatingPosition.left}px`;
-  floatingCopilotEl.style.top = `${floatingPosition.top}px`;
-  floatingCopilotEl.style.bottom = "auto";
-  floatingCopilotEl.style.transform = "none";
-}
-
-function ensureFloatingPositionInitialized() {
-  if (floatingPosition.left !== null && floatingPosition.top !== null) {
-    return;
-  }
-
-  const rect = floatingCopilotEl.getBoundingClientRect();
-  floatingPosition.left = rect.left;
-  floatingPosition.top = rect.top;
-}
-
-function moveFloatingCopilot(topDelta, leftDelta) {
-  ensureFloatingPositionInitialized();
-  const width = floatingCopilotEl.offsetWidth || 760;
-  const height = floatingCopilotEl.offsetHeight || 220;
-  const maxTop = Math.max(8, window.innerHeight - height - 8);
-  const maxLeft = Math.max(8, window.innerWidth - width - 8);
-
-  floatingPosition.top = Math.min(maxTop, Math.max(8, floatingPosition.top + topDelta));
-  floatingPosition.left = Math.min(maxLeft, Math.max(8, floatingPosition.left + leftDelta));
-  applyFloatingPosition();
-}
-
-function clampFloatingPosition() {
-  if (window.innerWidth <= 1180) {
-    floatingPosition.left = null;
-    floatingPosition.top = null;
-    applyFloatingPosition();
-    return;
-  }
-
-  ensureFloatingPositionInitialized();
-  const width = floatingCopilotEl.offsetWidth || 360;
-  const height = floatingCopilotEl.offsetHeight || 220;
-  const maxTop = Math.max(8, window.innerHeight - height - 8);
-  const maxLeft = Math.max(8, window.innerWidth - width - 8);
-  floatingPosition.left = Math.max(8, Math.min(maxLeft, floatingPosition.left));
-  floatingPosition.top = Math.max(8, Math.min(maxTop, floatingPosition.top));
-  applyFloatingPosition();
-}
-
-function startFloatingDrag(event) {
-  if (event.target.closest("button")) {
-    return;
-  }
-
-  ensureFloatingPositionInitialized();
-  const rect = floatingCopilotEl.getBoundingClientRect();
-  dragState = {
-    pointerOffsetX: event.clientX - rect.left,
-    pointerOffsetY: event.clientY - rect.top
-  };
-  floatingCopilotEl.focus();
-  window.addEventListener("pointermove", onFloatingDragMove);
-  window.addEventListener("pointerup", stopFloatingDrag);
-}
-
-function onFloatingDragMove(event) {
-  if (!dragState) {
-    return;
-  }
-
-  const width = floatingCopilotEl.offsetWidth || 360;
-  const height = floatingCopilotEl.offsetHeight || 220;
-  const maxLeft = Math.max(8, window.innerWidth - width - 8);
-  const maxTop = Math.max(8, window.innerHeight - height - 8);
-  const left = Math.max(8, Math.min(maxLeft, event.clientX - dragState.pointerOffsetX));
-  const top = Math.max(8, Math.min(maxTop, event.clientY - dragState.pointerOffsetY));
-
-  floatingPosition.top = top;
-  floatingPosition.left = left;
-  applyFloatingPosition();
-}
-
-function stopFloatingDrag() {
-  dragState = null;
-  window.removeEventListener("pointermove", onFloatingDragMove);
-  window.removeEventListener("pointerup", stopFloatingDrag);
-}
-
-function setActivityCollapsed(collapsed) {
-  activityCollapsed = collapsed;
-
-  if (!activityContainer || !activityCollapseBtn) {
-    return;
-  }
-
-  activityContainer.style.display = collapsed ? "none" : "block";
-  activityCollapseBtn.textContent = collapsed ? "Expand" : "Collapse";
-}
-
-function setActiveView(viewName) {
-  activeView = viewName;
-
-  navButtons.forEach((button) => {
-    const isActive = button.dataset.viewTarget === viewName;
-    button.classList.toggle("active", isActive);
-  });
-
-  viewPanels.forEach((panel) => {
-    panel.classList.toggle("active", panel.id === `view-${viewName}`);
-  });
-}
-
-function toggleActivityPanel() {
-  setActivityCollapsed(!activityCollapsed);
-}
-
-function updateDashboardStats() {
-  const taskCount = latestDashboard.tasks.length;
-  const activityCount = latestDashboard.activities.length;
-  const meetingCount = latestMeetings.length;
-
-  statOpenTasksEl.textContent = `${taskCount}`;
-  statMeetingsEl.textContent = `${meetingCount}`;
-  statActivitiesEl.textContent = `${activityCount}`;
-  statActivitiesMetaEl.textContent = hideNoise ? "Noise filtered feed" : "Showing all captured items";
-}
-
-function renderExecutionHealth(meeting) {
-  const progress = Math.max(0, Math.min(100, Number(meeting?.progress_percent || 0)));
-  const health = meeting?.execution_health || "needs_start";
-
-  executionHealthLabelEl.textContent = sentenceCase(health);
-  executionHealthLabelEl.className = `execution-health-label health-${health}`;
-  executionProgressLabelEl.textContent = `${progress}%`;
-  executionProgressBarEl.style.width = `${progress}%`;
-  executionProgressBarEl.className = `progress-fill health-${health}`;
-  nextRecommendationEl.textContent =
-    meeting?.next_recommendation || "Generate or open a plan to see the next move.";
-  adaptationNoteEl.textContent = meeting?.adaptation_note || "No execution state yet.";
-}
-
-async function fetchWatcherStatus() {
-  const data = await fetchJson("/api/watcher/status");
-  const enabled = Boolean(data.enabled);
-
-  watcherStatusEl.textContent = enabled ? "Watcher: ON" : "Watcher: PAUSED";
-  watcherToggleBtn.textContent = enabled ? "Stop watcher" : "Start watcher";
-  watcherToggleBtn.dataset.mode = enabled ? "stop" : "start";
-
-  heroStatusPillEl.textContent = enabled ? "Live" : "Paused";
-  heroStatusPillEl.classList.toggle("live", enabled);
-  heroStatusPillEl.classList.toggle("paused", !enabled);
-}
-
-async function fetchDashboard() {
-  const includeNoise = hideNoise ? "false" : "true";
-  const data = await fetchJson(`/api/dashboard?include_noise=${includeNoise}&activity_limit=20`);
-  latestDashboard = {
-    tasks: data.tasks || [],
-    activities: data.activities || []
-  };
-
-  updateDashboardStats();
-  renderScreenTasks(latestDashboard.tasks);
-  renderActivities(latestDashboard.activities);
-  renderActivityPreview(latestDashboard.activities);
-  renderCopilot();
-
-  if (!latestDashboard.activities.length) {
-    setActivityCollapsed(true);
-  }
-}
-
-function renderScreenTasks(tasks) {
-  tasksEl.innerHTML = "";
-
-  if (!tasks.length) {
-    setEmptyState(tasksEl, "No screen watcher tasks yet.");
+    setEmpty(el.tasks, "No tasks yet. The seeded demo dataset will appear on first run, or generate tasks from a live session.");
     return;
   }
 
   tasks.forEach((task) => {
-    const node = taskTemplate.content.cloneNode(true);
-    node.querySelector(".card-title").textContent = task.title;
-    node.querySelector(".card-meta").textContent =
-      `${task.source_window || "Unknown source"} • confidence ${task.confidence}%`;
-    node.querySelector(".card-body").textContent = task.reason || "No reason recorded.";
+    const fragment = el.templates.task.content.cloneNode(true);
+    const card = fragment.querySelector(".signal-task-card");
+    const view = fragment.querySelector(".signal-task-view");
+    const title = fragment.querySelector(".card-title");
+    const status = fragment.querySelector(".task-status-pill");
+    const priority = fragment.querySelector(".task-priority-chip");
+    const timeline = fragment.querySelector(".task-timeline-chip");
+    const meta = fragment.querySelector(".card-meta");
+    const body = fragment.querySelector(".card-body");
+    const editButton = fragment.querySelector(".task-edit-btn");
+    const completeButton = fragment.querySelector(".task-complete-btn");
+    const form = fragment.querySelector(".task-edit-form");
+    const titleInput = fragment.querySelector(".task-title-input");
+    const priorityInput = fragment.querySelector(".task-priority-input");
+    const timelineInput = fragment.querySelector(".task-timeline-input");
+    const statusInput = fragment.querySelector(".task-status-input");
+    const reasonInput = fragment.querySelector(".task-reason-input");
+    const cancelButton = fragment.querySelector(".task-cancel-btn");
 
-    const statusPill = node.querySelector(".task-status-pill");
-    const normalizedStatus = (task.status || "open").toLowerCase();
-    statusPill.textContent = sentenceCase(normalizedStatus);
-    statusPill.classList.add(normalizedStatus === "done" ? "done" : "open");
+    title.textContent = task.title;
+    status.textContent = sentenceCase(task.status);
+    status.classList.add(task.status);
+    priority.textContent = sentenceCase(task.priority);
+    priority.classList.add(`priority-${task.priority}`);
+    timeline.textContent = sentenceCase(task.timeline_bucket);
+    meta.textContent = `${task.source_window || "Manual"} • ${task.confidence}% confidence • ${formatTimestamp(task.created_at)}`;
+    body.textContent = task.reason || "No rationale available.";
+    completeButton.textContent = task.status === "done" ? "Reopen" : "Mark done";
+    view.classList.toggle("is-done", task.status === "done");
 
-    tasksEl.appendChild(node);
+    titleInput.value = task.title;
+    priorityInput.value = task.priority;
+    timelineInput.value = task.timeline_bucket;
+    statusInput.value = task.status;
+    reasonInput.value = task.reason || "";
+
+    editButton.addEventListener("click", () => {
+      view.classList.add("hidden");
+      form.classList.remove("hidden");
+    });
+
+    cancelButton.addEventListener("click", () => {
+      form.classList.add("hidden");
+      view.classList.remove("hidden");
+    });
+
+    completeButton.addEventListener("click", async () => {
+      const nextStatus = task.status === "done" ? "open" : "done";
+      await fetchJson(`/api/tasks/${task.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          title: task.title,
+          priority: task.priority,
+          timeline_bucket: task.timeline_bucket,
+          status: nextStatus,
+          reason: task.reason || "",
+        }),
+      });
+      await refreshDashboard();
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await fetchJson(`/api/tasks/${task.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          title: titleInput.value.trim(),
+          priority: priorityInput.value,
+          timeline_bucket: timelineInput.value,
+          status: statusInput.value,
+          reason: reasonInput.value.trim(),
+        }),
+      });
+      await refreshDashboard();
+    });
+
+    el.tasks.appendChild(fragment);
   });
 }
 
-function renderActivities(activities) {
-  activitiesEl.innerHTML = "";
+function renderActivities() {
+  const activities = state.dashboard.activities || [];
+  el.activities.innerHTML = "";
 
   if (!activities.length) {
-    setEmptyState(activitiesEl, "No activity captured yet.");
+    setEmpty(el.activities, "No activity yet. Start a session or trigger a manual scan.");
     return;
   }
 
   activities.forEach((activity) => {
-    const node = activityTemplate.content.cloneNode(true);
-    node.querySelector(".card-title").textContent =
-      activity.inferred_summary || activity.window_title || "Screen activity";
-    node.querySelector(".card-meta").textContent =
-      `${activity.app_name || "Unknown app"} • confidence ${activity.confidence ?? 0}% • ${formatDateTime(activity.created_at)}`;
-    node.querySelector(".card-body").textContent = activity.ocr_text || "No OCR text stored.";
+    const fragment = el.templates.activity.content.cloneNode(true);
+    const title = fragment.querySelector(".card-title");
+    const meta = fragment.querySelector(".card-meta");
+    const body = fragment.querySelector(".card-body");
+    const deleteButton = fragment.querySelector(".activity-delete-btn");
 
-    const deleteBtn = node.querySelector(".activity-delete-btn");
-    deleteBtn.addEventListener("click", async () => {
-      try {
-        await fetchJson(`/api/activities/${activity.id}`, { method: "DELETE" });
-        await fetchDashboard();
-      } catch (error) {
-        console.error("Delete activity failed:", error);
-        alert("Failed to delete activity.");
-      }
+    title.textContent = activity.window_title || "Untitled activity";
+    meta.textContent = `${activity.app_name || "Unknown app"} • ${activity.confidence}% confidence • ${formatTimestamp(activity.created_at)}`;
+    body.textContent = truncate(activity.inferred_summary || activity.ocr_text || "No OCR content stored.", 220);
+
+    deleteButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await fetchJson(`/api/activities/${activity.id}`, { method: "DELETE" });
+      await refreshDashboard();
     });
 
-    activitiesEl.appendChild(node);
+    el.activities.appendChild(fragment);
   });
+
+  el.activitiesContainer.classList.toggle("hidden", state.activityCollapsed);
+  el.activityCollapseBtn.textContent = state.activityCollapsed ? "Expand" : "Collapse";
 }
 
-function renderActivityPreview(activities) {
-  activityPreviewEl.innerHTML = "";
+function renderActivityPreview() {
+  const activities = (state.dashboard.activities || []).slice(0, 3);
+  el.activityPreview.innerHTML = "";
 
-  const previewItems = activities.slice(0, 3);
-  if (!previewItems.length) {
-    setEmptyState(activityPreviewEl, "No recent signal yet.");
+  if (!activities.length) {
+    setEmpty(el.activityPreview, "No recent activity.");
     return;
   }
 
-  previewItems.forEach((activity) => {
+  activities.forEach((activity) => {
     const card = document.createElement("article");
-    card.className = "activity-item-card";
+    card.className = "planner-preview-card";
     card.innerHTML = `
-      <h4 class="card-title">${activity.inferred_summary || activity.window_title || "Screen activity"}</h4>
-      <p class="card-meta">${activity.app_name || "Unknown app"} • ${formatDateTime(activity.created_at)}</p>
-      <p class="card-body">${activity.ocr_text || "No OCR text stored."}</p>
+      <h4 class="planner-preview-title"></h4>
+      <p class="card-meta"></p>
     `;
-    activityPreviewEl.appendChild(card);
+    card.querySelector(".planner-preview-title").textContent = activity.window_title || activity.app_name || "Signal";
+    card.querySelector(".card-meta").textContent = truncate(activity.inferred_summary || activity.ocr_text || "No OCR signal.", 120);
+    el.activityPreview.appendChild(card);
   });
 }
 
-async function fetchMeetings() {
-  latestMeetings = await fetchJson("/api/meetings");
-  updateDashboardStats();
-  renderMeetingList(latestMeetings);
+function renderMeetingList() {
+  el.meetingList.innerHTML = "";
 
-  if (!activeMeetingId && latestMeetings.length > 0) {
-    const details = await fetchJson(`/api/meetings/${latestMeetings[0].id}`);
-    activeMeetingId = latestMeetings[0].id;
-    renderMeetingDetails(details);
-  }
-}
-
-function renderMeetingList(meetings) {
-  meetingListEl.innerHTML = "";
-
-  if (!meetings.length) {
-    setEmptyState(meetingListEl, "No meeting plans created yet.");
+  if (!state.meetings.length) {
+    setEmpty(el.meetingList, "No saved meetings yet. Generate one from a transcript.");
     return;
   }
 
-  meetings.forEach((meeting) => {
-    const node = meetingListTemplate.content.cloneNode(true);
-    node.querySelector(".meeting-list-title").textContent = meeting.title;
-    node.querySelector(".meeting-list-meta").textContent =
-      `${sentenceCase(meeting.execution_health || "needs_start")} - ${meeting.progress_percent || 0}% - ${formatDate(meeting.target_end_date)}`;
+  state.meetings.forEach((meeting) => {
+    const fragment = el.templates.meetingList.content.cloneNode(true);
+    const item = fragment.querySelector(".meeting-list-item");
+    const title = fragment.querySelector(".meeting-list-title");
+    const meta = fragment.querySelector(".meeting-list-meta");
+    const button = fragment.querySelector(".meeting-open-btn");
 
-    node.querySelector(".meeting-open-btn").addEventListener("click", async () => {
-      const details = await fetchJson(`/api/meetings/${meeting.id}`);
-      activeMeetingId = meeting.id;
-      renderMeetingDetails(details);
-      setActiveView("overview");
+    title.textContent = meeting.title;
+    meta.textContent = `${healthLabel(meeting.execution_health)} • ${meeting.progress_percent || 0}% • ${meeting.target_end_date || "No target date"}`;
+    item.classList.toggle("active", state.activeMeeting?.id === meeting.id);
+
+    button.addEventListener("click", () => {
+      void loadMeeting(meeting.id);
     });
 
-    meetingListEl.appendChild(node);
+    el.meetingList.appendChild(fragment);
   });
 }
 
-function clearPlannerBoards() {
-  [
-    priorityHighEl,
-    priorityMediumEl,
-    priorityLowEl,
-    bucketTodayEl,
-    bucketTomorrowEl,
-    bucketThisWeekEl,
-    bucketNextWeekEl,
-    bucketLaterEl,
-    priorityHighPreviewEl,
-    priorityMediumPreviewEl,
-    priorityLowPreviewEl,
-  ].forEach((element) => {
-    element.innerHTML = "";
-  });
+function renderExecutionHealth(meeting) {
+  const progress = Math.max(0, Math.min(100, meeting?.progress_percent || 0));
+  const health = meeting?.execution_health || "needs_start";
+
+  el.executionHealthLabel.textContent = healthLabel(health);
+  el.executionHealthLabel.className = `execution-health-label health-${health}`;
+  el.executionProgressLabel.textContent = `${progress}%`;
+  el.executionProgressBar.style.width = `${progress}%`;
+  el.executionProgressBar.className = `progress-fill health-${health}`;
+  el.nextRecommendation.textContent = meeting?.next_recommendation || "Generate or open a plan to see the next move.";
+  el.adaptationNote.textContent = meeting?.adaptation_note || "No execution state yet.";
 }
 
-function createPlannerActionCard(action, meetingId) {
-  const fragment = plannerActionTemplate.content.cloneNode(true);
-  const card = fragment.querySelector(".planner-task-card");
-  const isDone = action.status === "done";
-  card.classList.toggle("done", isDone);
-  card.querySelector(".planner-task-title").textContent = action.title;
-
-  const chips = card.querySelectorAll(".planner-chip");
-  chips[0].textContent = action.owner || "Unassigned";
-  chips[1].textContent = sentenceCase(action.priority);
-  chips[1].classList.add(`priority-${(action.priority || "low").toLowerCase()}`);
-  chips[2].textContent = action.timeline_bucket || "Later";
-  chips[3].textContent = `${action.estimated_minutes} min`;
-  chips[4].textContent = `${sentenceCase(action.risk_level || "medium")} risk`;
-  chips[4].classList.add(`risk-${(action.risk_level || "medium").toLowerCase()}`);
-  chips[5].textContent = action.is_blocked ? "Blocked" : "Ready";
-  chips[5].classList.add(action.is_blocked ? "blocked" : "ready");
-
-  const detailParts = [action.rationale];
-  if (action.due_date) {
-    detailParts.push(`Due: ${action.due_date}.`);
-  }
-  if (action.dependency_summary) {
-    detailParts.push(`Depends on: ${action.dependency_summary}.`);
-  }
-  if (action.unblocker) {
-    detailParts.push(`Unblocker: ${action.unblocker}`);
-  }
-
-  card.querySelector(".planner-task-body").textContent = detailParts.filter(Boolean).join(" ");
-
-  const btn = card.querySelector(".planner-complete-btn");
-  btn.textContent = isDone ? "Reopen" : "Mark done";
-  btn.addEventListener("click", async () => {
-    try {
-      const updatedMeeting = await fetchJson(
-        `/api/meetings/${meetingId}/actions/${action.id}/status`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: isDone ? "open" : "done" })
-        }
-      );
-      renderMeetingDetails(updatedMeeting);
-      await fetchMeetings();
-    } catch (error) {
-      console.error("Update action status failed:", error);
-      alert("Failed to update action.");
-    }
-  });
-
-  return card;
-}
-
-function createPlannerPreviewCard(action) {
-  const fragment = plannerPreviewTemplate.content.cloneNode(true);
+function createPreviewCard(action) {
+  const fragment = el.templates.plannerPreview.content.cloneNode(true);
   fragment.querySelector(".planner-preview-title").textContent = action.title;
-
   const priorityChip = fragment.querySelector(".preview-priority-chip");
+  const timelineChip = fragment.querySelector(".preview-timeline-chip");
   priorityChip.textContent = sentenceCase(action.priority);
-  priorityChip.classList.add(`preview-priority-${(action.priority || "low").toLowerCase()}`);
-
-  fragment.querySelector(".preview-timeline-chip").textContent = action.timeline_bucket || "Later";
+  priorityChip.classList.add(`preview-priority-${action.priority}`);
+  timelineChip.textContent = sentenceCase(action.timeline_bucket);
   return fragment;
 }
 
-function ensureLaneEmptyStates(actions) {
-  if (!actions.length) {
-    [
-      priorityHighEl,
-      priorityMediumEl,
-      priorityLowEl,
-      bucketTodayEl,
-      bucketTomorrowEl,
-      bucketThisWeekEl,
-      bucketNextWeekEl,
-      bucketLaterEl,
-      priorityHighPreviewEl,
-      priorityMediumPreviewEl,
-      priorityLowPreviewEl,
-    ].forEach((container) => setEmptyState(container, "No items."));
-    return;
-  }
+function createActionCard(action) {
+  const fragment = el.templates.plannerAction.content.cloneNode(true);
+  const card = fragment.querySelector(".planner-task-card");
+  const title = fragment.querySelector(".planner-task-title");
+  const body = fragment.querySelector(".planner-task-body");
+  const ownerChip = fragment.querySelector(".owner-chip");
+  const priorityChip = fragment.querySelector(".priority-chip");
+  const timelineChip = fragment.querySelector(".timeline-chip");
+  const timeChip = fragment.querySelector(".time-chip");
+  const riskChip = fragment.querySelector(".risk-chip");
+  const blockedChip = fragment.querySelector(".blocked-chip");
+  const button = fragment.querySelector(".planner-complete-btn");
 
-  [
-    priorityHighEl,
-    priorityMediumEl,
-    priorityLowEl,
-    bucketTodayEl,
-    bucketTomorrowEl,
-    bucketThisWeekEl,
-    bucketNextWeekEl,
-    bucketLaterEl,
-    priorityHighPreviewEl,
-    priorityMediumPreviewEl,
-    priorityLowPreviewEl,
-  ].forEach((container) => {
-    if (!container.children.length) {
-      setEmptyState(container, "No items.");
+  title.textContent = action.title;
+  ownerChip.textContent = action.owner || "Unassigned";
+  priorityChip.textContent = sentenceCase(action.priority);
+  priorityChip.classList.add(`priority-${action.priority}`);
+  timelineChip.textContent = sentenceCase(action.timeline_bucket);
+  timeChip.textContent = `${action.estimated_minutes || 0} min`;
+  riskChip.textContent = `Risk: ${sentenceCase(action.risk_level)}`;
+  riskChip.classList.add(`risk-${action.risk_level}`);
+  blockedChip.textContent = action.is_blocked ? "Blocked" : "Ready";
+  blockedChip.classList.add(action.is_blocked ? "blocked" : "ready");
+  body.textContent = truncate(
+    [action.rationale, action.dependency_summary ? `Dependency: ${action.dependency_summary}` : "", action.unblocker ? `Unblocker: ${action.unblocker}` : ""]
+      .filter(Boolean)
+      .join(" "),
+    260,
+  );
+
+  card.classList.toggle("done", action.status === "done");
+  button.textContent = action.status === "done" ? "Reopen" : "Mark done";
+  button.addEventListener("click", async () => {
+    if (!state.activeMeeting) {
+      return;
     }
-  });
-}
-
-function renderMeetingDetails(meeting) {
-  activeMeetingId = meeting.id;
-  activeMeetingDetails = meeting;
-  meetingIdBadgeEl.textContent = `Meeting #${meeting.id}`;
-  meetingSummaryEl.textContent = meeting.summary || "No summary available.";
-  meetingDecisionsEl.textContent = meeting.decisions || "No decisions available.";
-  meetingPrioritiesOverviewEl.textContent =
-    meeting.priorities_overview || "No priority overview available.";
-  renderExecutionHealth(meeting);
-
-  clearPlannerBoards();
-
-  const actions = (meeting.actions || []).slice().sort((a, b) => a.step_order - b.step_order);
-  actionCountEl.textContent = `${actions.length} actions`;
-
-  actions.forEach((action) => {
-    const priorityCard = createPlannerActionCard(action, meeting.id);
-    const timelineCard = createPlannerActionCard(action, meeting.id);
-
-    const priorityTarget = getPriorityContainer(action.priority);
-    const timelineTarget = getTimelineContainer(action.timeline_bucket);
-    const previewTarget = getPriorityPreviewContainer(action.priority);
-
-    if (priorityTarget) {
-      priorityTarget.appendChild(priorityCard);
-    }
-    if (timelineTarget) {
-      timelineTarget.appendChild(timelineCard);
-    }
-    if (previewTarget && previewTarget.children.length < 2) {
-      previewTarget.appendChild(createPlannerPreviewCard(action));
-    }
-  });
-
-  ensureLaneEmptyStates(actions);
-  renderCopilot();
-}
-
-function getPriorityContainer(priority) {
-  const normalized = (priority || "").toLowerCase();
-  if (normalized === "high") return priorityHighEl;
-  if (normalized === "medium") return priorityMediumEl;
-  return priorityLowEl;
-}
-
-function getPriorityPreviewContainer(priority) {
-  const normalized = (priority || "").toLowerCase();
-  if (normalized === "high") return priorityHighPreviewEl;
-  if (normalized === "medium") return priorityMediumPreviewEl;
-  return priorityLowPreviewEl;
-}
-
-function getTimelineContainer(bucket) {
-  const normalized = (bucket || "").toLowerCase();
-  if (normalized === "today") return bucketTodayEl;
-  if (normalized === "tomorrow") return bucketTomorrowEl;
-  if (normalized === "this week") return bucketThisWeekEl;
-  if (normalized === "next week") return bucketNextWeekEl;
-  return bucketLaterEl;
-}
-
-meetingForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const title = meetingTitleInput.value.trim();
-  const transcript = meetingTranscriptInput.value.trim();
-  const target_end_date = meetingTargetDateInput.value || null;
-
-  if (!title || !transcript) return;
-
-  try {
-    generatePlanBtn.disabled = true;
-    generatePlanBtn.textContent = "Generating...";
-
-    const meeting = await fetchJson("/api/meetings/plan", {
+    await fetchJson(`/api/meetings/${state.activeMeeting.id}/actions/${action.id}/status`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        transcript,
-        target_end_date
-      })
+      body: JSON.stringify({ status: action.status === "done" ? "open" : "done" }),
     });
+    await loadMeeting(state.activeMeeting.id);
+    await refreshMeetings(false);
+  });
 
-    renderMeetingDetails(meeting);
-    await fetchMeetings();
-    meetingForm.reset();
-    setActiveView("overview");
-  } catch (error) {
-    console.error("Meeting plan generation failed:", error);
-    alert("Failed to generate meeting plan.");
-  } finally {
-    generatePlanBtn.disabled = false;
-    generatePlanBtn.textContent = "Generate plan";
+  return fragment;
+}
+
+function renderBoards() {
+  const meeting = state.activeMeeting;
+  const previews = {
+    high: el.priorityHighPreview,
+    medium: el.priorityMediumPreview,
+    low: el.priorityLowPreview,
+  };
+  const boards = {
+    high: el.priorityHigh,
+    medium: el.priorityMedium,
+    low: el.priorityLow,
+  };
+
+  Object.values(previews).forEach((node) => { node.innerHTML = ""; });
+  Object.values(boards).forEach((node) => { node.innerHTML = ""; });
+  Object.values(timelineTargets).forEach((node) => { node.innerHTML = ""; });
+
+  if (!meeting || !meeting.actions.length) {
+    Object.values(previews).forEach((node) => setEmpty(node, "No items."));
+    Object.values(boards).forEach((node) => setEmpty(node, "No items."));
+    Object.values(timelineTargets).forEach((node) => setEmpty(node, "No items."));
+    el.actionCount.textContent = "0 actions";
+    return;
   }
-});
 
-scanNowBtn.addEventListener("click", async () => {
-  try {
-    scanNowBtn.disabled = true;
-    scanNowBtn.textContent = "Scanning...";
-    await fetchJson("/api/scan-once", { method: "POST" });
-    await fetchDashboard();
-    await fetchWatcherStatus();
-  } catch (error) {
-    console.error("Scan failed:", error);
-  } finally {
-    scanNowBtn.disabled = false;
-    scanNowBtn.textContent = "Scan now";
+  const actions = [...meeting.actions].sort((a, b) => a.step_order - b.step_order);
+  el.actionCount.textContent = `${actions.length} actions`;
+
+  ["high", "medium", "low"].forEach((priority) => {
+    const filtered = actions.filter((action) => action.priority === priority);
+    if (!filtered.length) {
+      setEmpty(previews[priority], "No items.");
+      setEmpty(boards[priority], "No items.");
+      return;
+    }
+
+    filtered.slice(0, 2).forEach((action) => previews[priority].appendChild(createPreviewCard(action)));
+    filtered.forEach((action) => boards[priority].appendChild(createActionCard(action)));
+  });
+
+  Object.entries(timelineTargets).forEach(([bucket, container]) => {
+    const filtered = actions.filter((action) => normalizeBucket(action.timeline_bucket) === bucket);
+    if (!filtered.length) {
+      setEmpty(container, "No items.");
+      return;
+    }
+    filtered.forEach((action) => container.appendChild(createActionCard(action)));
+  });
+}
+
+function renderMeetingDetails() {
+  const meeting = state.activeMeeting;
+
+  if (!meeting) {
+    el.meetingIdBadge.textContent = "No plan yet";
+    el.meetingSummary.textContent = "No summary yet.";
+    el.meetingDecisions.textContent = "No decisions yet.";
+    el.meetingPrioritiesOverview.textContent = "No priorities yet.";
+    renderExecutionHealth(null);
+    renderBoards();
+    return;
   }
-});
 
-watcherToggleBtn.addEventListener("click", async () => {
-  try {
-    watcherToggleBtn.disabled = true;
-    const mode = watcherToggleBtn.dataset.mode || "stop";
-    const endpoint = mode === "stop" ? "/api/watcher/stop" : "/api/watcher/start";
-    await fetchJson(endpoint, { method: "POST" });
-    await fetchWatcherStatus();
-  } catch (error) {
-    console.error("Watcher toggle failed:", error);
-  } finally {
-    watcherToggleBtn.disabled = false;
+  el.meetingIdBadge.textContent = `Plan #${meeting.id}`;
+  el.meetingSummary.textContent = meeting.summary || "No summary yet.";
+  el.meetingDecisions.textContent = meeting.decisions || "No decisions yet.";
+  el.meetingPrioritiesOverview.textContent = meeting.priorities_overview || "No priorities yet.";
+  renderExecutionHealth(meeting);
+  renderBoards();
+}
+
+function renderCopilot() {
+  const payload = buildCopilotPayload();
+  const modeLabel = payload.mode === "summary" ? "Summary mode" : payload.mode === "tasks" ? "Task mode" : "Answer mode";
+  const speakerText = payload.speaker && payload.speaker !== "No speaker" ? `${payload.speaker} asked` : "No question yet";
+
+  el.copilotSpeakerBadge.textContent = speakerText;
+  el.copilotQuestion.textContent = payload.question;
+  el.copilotAnswer.textContent = payload.answer;
+  el.copilotMeetingTitle.textContent = payload.meetingTitle;
+  el.copilotScreenSignal.textContent = payload.screenSignal;
+  el.copilotTone.textContent = payload.tone;
+  el.copilotScreenContext.textContent = payload.screenSignal;
+  el.copilotTaskContext.textContent = payload.taskSignal;
+  el.copilotFollowUp.textContent = payload.followUp;
+
+  el.copilotPoints.innerHTML = "";
+  if (!payload.points.length) {
+    setEmpty(el.copilotPoints, "No talking points yet.");
+  } else {
+    payload.points.forEach((point, index) => {
+      const card = document.createElement("article");
+      card.className = "copilot-point-card";
+      card.innerHTML = `
+        <h4 class="copilot-point-title">Point ${index + 1}</h4>
+        <p class="copilot-point-body"></p>
+      `;
+      card.querySelector(".copilot-point-body").textContent = point;
+      el.copilotPoints.appendChild(card);
+    });
   }
-});
 
-clearActivitiesBtn.addEventListener("click", async () => {
-  try {
-    clearActivitiesBtn.disabled = true;
-    clearActivitiesBtn.textContent = "Clearing...";
+  el.floatingCommandText.textContent =
+    payload.mode === "summary" ? "Summarize the room" : payload.mode === "tasks" ? "What should we do next?" : "What should I say next?";
+  el.floatingSpeakerChip.textContent = payload.speaker || "No speaker";
+  el.floatingToneChip.textContent = payload.tone;
+  el.floatingModeChip.textContent = modeLabel;
+  el.floatingQuestion.textContent = payload.question;
+  el.floatingAnswer.textContent = payload.answer;
+  el.floatingScreenContext.textContent = payload.screenSignal;
+  el.floatingFollowUp.textContent = payload.followUp;
+
+  [el.floatingAskBtn, el.floatingSummaryBtn, el.floatingTasksBtn].forEach((button) => button.classList.remove("active"));
+  if (payload.mode === "summary") {
+    el.floatingSummaryBtn.classList.add("active");
+  } else if (payload.mode === "tasks") {
+    el.floatingTasksBtn.classList.add("active");
+  } else {
+    el.floatingAskBtn.classList.add("active");
+  }
+}
+
+function updateFloatingLayout() {
+  el.floatingCopilot.classList.toggle("minimized", state.floatingMinimized);
+  el.floatingToggleBtn.textContent = state.floatingMinimized ? "Show" : "Hide";
+
+  if (!state.floatingPosition) {
+    el.floatingCopilot.style.left = "";
+    el.floatingCopilot.style.top = "";
+    el.floatingCopilot.style.bottom = "";
+    el.floatingCopilot.style.transform = "";
+    return;
+  }
+
+  el.floatingCopilot.style.left = `${state.floatingPosition.left}px`;
+  el.floatingCopilot.style.top = `${state.floatingPosition.top}px`;
+  el.floatingCopilot.style.bottom = "auto";
+  el.floatingCopilot.style.transform = "none";
+}
+
+async function refreshDashboard() {
+  state.dashboard = await fetchJson(`/api/dashboard?include_noise=${state.includeNoise}&activity_limit=20`);
+  renderStats();
+  renderTaskList();
+  renderActivities();
+  renderActivityPreview();
+  renderCopilot();
+}
+
+async function refreshMeetings(loadActive = true) {
+  state.meetings = await fetchJson("/api/meetings");
+  renderStats();
+  renderMeetingList();
+
+  if (loadActive) {
+    const activeId = state.activeMeeting?.id || state.meetings[0]?.id;
+    if (activeId) {
+      await loadMeeting(activeId);
+    } else {
+      state.activeMeeting = null;
+      renderMeetingDetails();
+      renderCopilot();
+    }
+  }
+}
+
+async function loadMeeting(meetingId) {
+  state.activeMeeting = await fetchJson(`/api/meetings/${meetingId}`);
+  renderMeetingList();
+  renderMeetingDetails();
+  renderCopilot();
+}
+
+async function refreshSession() {
+  state.session = await fetchJson("/api/session/status");
+  renderSessionStatus();
+}
+
+async function handleSessionToggle() {
+  const url = state.session.active ? "/api/session/stop" : "/api/session/start";
+  state.session = await fetchJson(url, { method: "POST" });
+  renderSessionStatus();
+}
+
+async function handleScanNow() {
+  await fetchJson("/api/scan-once", { method: "POST" });
+  setTimeout(() => {
+    void refreshDashboard();
+  }, 1200);
+}
+
+async function handleMeetingSubmit(event) {
+  event.preventDefault();
+  const payload = {
+    title: el.meetingTitle.value.trim(),
+    transcript: el.meetingTranscript.value.trim(),
+    target_end_date: el.meetingTargetDate.value || null,
+  };
+
+  if (!payload.title || !payload.transcript) {
+    return;
+  }
+
+  const meeting = await fetchJson("/api/meetings/plan", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  state.activeMeeting = meeting;
+  await refreshMeetings(false);
+  renderMeetingList();
+  renderMeetingDetails();
+  renderCopilot();
+  setActiveView("overview");
+  el.meetingForm.reset();
+}
+
+function setupNavigation() {
+  el.navButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setActiveView(button.dataset.viewTarget);
+    });
+  });
+
+  el.shortcutViewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setActiveView(button.dataset.shortcutView);
+    });
+  });
+}
+
+function setupActivityControls() {
+  el.hideNoiseToggle.checked = !state.includeNoise;
+  el.hideNoiseToggle.addEventListener("change", async () => {
+    state.includeNoise = !el.hideNoiseToggle.checked;
+    await refreshDashboard();
+  });
+
+  el.clearActivitiesBtn.addEventListener("click", async () => {
     await fetchJson("/api/activities/clear", { method: "POST" });
-    await fetchDashboard();
-  } catch (error) {
-    console.error("Failed to clear activities:", error);
-    alert("Failed to clear activities.");
-  } finally {
-    clearActivitiesBtn.disabled = false;
-    clearActivitiesBtn.textContent = "Clear all";
-  }
-});
-
-hideNoiseToggle.checked = true;
-hideNoiseToggle.addEventListener("change", async () => {
-  hideNoise = hideNoiseToggle.checked;
-  await fetchDashboard();
-});
-
-activityCollapseBtn.addEventListener("click", (event) => {
-  event.stopPropagation();
-  toggleActivityPanel();
-});
-
-activityHeaderToggle.addEventListener("click", (event) => {
-  if (event.target.closest("button") || event.target.closest("input") || event.target.closest("label")) {
-    return;
-  }
-  toggleActivityPanel();
-});
-
-navButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    setActiveView(button.dataset.viewTarget);
+    await refreshDashboard();
   });
-});
 
-shortcutViewButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    setActiveView(button.dataset.shortcutView);
+  el.activityHeaderToggle.addEventListener("click", (event) => {
+    if (event.target.closest("button") || event.target.closest("label")) {
+      return;
+    }
+    state.activityCollapsed = !state.activityCollapsed;
+    renderActivities();
   });
-});
 
-refreshCopilotBtn.addEventListener("click", () => {
+  el.activityCollapseBtn.addEventListener("click", () => {
+    state.activityCollapsed = !state.activityCollapsed;
+    renderActivities();
+  });
+}
+
+function setCopilotMode(mode) {
+  state.copilotMode = mode;
   renderCopilot();
-});
+}
 
-floatingRefreshBtn.addEventListener("click", () => {
-  renderCopilot();
-});
+function setupCopilotControls() {
+  el.refreshCopilotBtn.addEventListener("click", () => renderCopilot());
+  el.floatingRefreshBtn.addEventListener("click", () => renderCopilot());
+  el.floatingOpenBtn.addEventListener("click", () => setActiveView("copilot"));
+  el.floatingToggleBtn.addEventListener("click", () => {
+    state.floatingMinimized = !state.floatingMinimized;
+    updateFloatingLayout();
+  });
+  el.floatingAskBtn.addEventListener("click", () => setCopilotMode("answer"));
+  el.floatingSummaryBtn.addEventListener("click", () => setCopilotMode("summary"));
+  el.floatingTasksBtn.addEventListener("click", () => setCopilotMode("tasks"));
 
-floatingAskBtn.addEventListener("click", () => {
-  floatingCopilotMode = "answer";
-  renderCopilot();
-});
+  let dragState = null;
 
-floatingSummaryBtn.addEventListener("click", () => {
-  floatingCopilotMode = "summary";
-  renderCopilot();
-});
+  el.floatingHeader.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("button")) {
+      return;
+    }
+    const rect = el.floatingCopilot.getBoundingClientRect();
+    dragState = {
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+    };
+    el.floatingHeader.setPointerCapture(event.pointerId);
+    if (!state.floatingPosition) {
+      state.floatingPosition = { left: rect.left, top: rect.top };
+    }
+  });
 
-floatingTasksBtn.addEventListener("click", () => {
-  floatingCopilotMode = "tasks";
-  renderCopilot();
-});
+  el.floatingHeader.addEventListener("pointermove", (event) => {
+    if (!dragState) {
+      return;
+    }
+    state.floatingPosition = {
+      left: Math.max(12, event.clientX - dragState.offsetX),
+      top: Math.max(12, event.clientY - dragState.offsetY),
+    };
+    updateFloatingLayout();
+  });
 
-floatingOpenBtn.addEventListener("click", () => {
-  setActiveView("copilot");
-});
+  const stopDragging = () => {
+    dragState = null;
+  };
 
-floatingToggleBtn.addEventListener("click", () => {
-  setFloatingCopilotMinimized(!floatingCopilotMinimized);
-});
+  el.floatingHeader.addEventListener("pointerup", stopDragging);
+  el.floatingHeader.addEventListener("pointercancel", stopDragging);
 
-floatingCopilotHeaderEl.addEventListener("pointerdown", startFloatingDrag);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "/") {
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag !== "INPUT" && activeTag !== "TEXTAREA" && activeTag !== "SELECT") {
+        event.preventDefault();
+        el.floatingCopilot.focus();
+      }
+    }
 
-floatingCopilotEl.addEventListener("keydown", (event) => {
-  const step = event.shiftKey ? 36 : 18;
+    if (event.key === "1") {
+      setCopilotMode("answer");
+    } else if (event.key === "2") {
+      setCopilotMode("summary");
+    } else if (event.key === "3") {
+      setCopilotMode("tasks");
+    }
 
-  if (event.key === "ArrowUp") {
-    event.preventDefault();
-    moveFloatingCopilot(-step, 0);
-  } else if (event.key === "ArrowDown") {
-    event.preventDefault();
-    moveFloatingCopilot(step, 0);
-  } else if (event.key === "ArrowLeft") {
-    event.preventDefault();
-    moveFloatingCopilot(0, step);
-  } else if (event.key === "ArrowRight") {
-    event.preventDefault();
-    moveFloatingCopilot(0, -step);
-  } else if (event.key.toLowerCase() === "m") {
-    event.preventDefault();
-    setFloatingCopilotMinimized(!floatingCopilotMinimized);
-  } else if (event.key.toLowerCase() === "c") {
-    event.preventDefault();
-    setActiveView("copilot");
-  } else if (event.key === "1") {
-    event.preventDefault();
-    floatingCopilotMode = "answer";
-    renderCopilot();
-  } else if (event.key === "2") {
-    event.preventDefault();
-    floatingCopilotMode = "summary";
-    renderCopilot();
-  } else if (event.key === "3") {
-    event.preventDefault();
-    floatingCopilotMode = "tasks";
-    renderCopilot();
-  }
-});
+    if (document.activeElement !== el.floatingCopilot) {
+      return;
+    }
 
-window.addEventListener("keydown", (event) => {
-  if (event.target.closest("input, textarea")) {
-    return;
-  }
+    if (!state.floatingPosition) {
+      const rect = el.floatingCopilot.getBoundingClientRect();
+      state.floatingPosition = { left: rect.left, top: rect.top };
+    }
 
-  if (event.key === "/") {
-    event.preventDefault();
-    floatingCopilotEl.focus();
-  }
-});
-
-window.addEventListener("resize", clampFloatingPosition);
+    const step = event.shiftKey ? 24 : 12;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      state.floatingPosition.left = Math.max(12, state.floatingPosition.left - step);
+      updateFloatingLayout();
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      state.floatingPosition.left += step;
+      updateFloatingLayout();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      state.floatingPosition.top = Math.max(12, state.floatingPosition.top - step);
+      updateFloatingLayout();
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      state.floatingPosition.top += step;
+      updateFloatingLayout();
+    } else if (event.key.toLowerCase() === "m") {
+      event.preventDefault();
+      state.floatingMinimized = !state.floatingMinimized;
+      updateFloatingLayout();
+    } else if (event.key.toLowerCase() === "c") {
+      event.preventDefault();
+      setActiveView("copilot");
+    }
+  });
+}
 
 async function initialize() {
-  setActivityCollapsed(false);
-  setActiveView(activeView);
-  setFloatingCopilotMinimized(false);
-  applyFloatingPosition();
-  renderCopilot();
-  await Promise.all([fetchWatcherStatus(), fetchDashboard(), fetchMeetings()]);
+  setupNavigation();
+  setupActivityControls();
+  setupCopilotControls();
+
+  el.watcherToggle.addEventListener("click", () => {
+    void handleSessionToggle();
+  });
+  el.scanNow.addEventListener("click", () => {
+    void handleScanNow();
+  });
+  el.meetingForm.addEventListener("submit", (event) => {
+    void handleMeetingSubmit(event);
+  });
+
+  await refreshSession();
+  await refreshDashboard();
+  await refreshMeetings();
+  updateFloatingLayout();
+
+  window.setInterval(() => {
+    void refreshSession();
+  }, 10000);
+
+  window.setInterval(() => {
+    void refreshDashboard();
+  }, 15000);
+
+  window.setInterval(() => {
+    void refreshMeetings(false);
+  }, 30000);
 }
 
-initialize();
-setInterval(fetchDashboard, 12000);
-setInterval(fetchWatcherStatus, 12000);
-setInterval(fetchMeetings, 15000);
+void initialize();

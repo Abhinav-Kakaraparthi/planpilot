@@ -37,7 +37,8 @@ class ActivityWatcher:
         )
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
-        self._enabled = True
+        self._enabled = False
+        self._session_mode = True
 
         self._blocked_window_terms = [
             "screenmind todo",
@@ -68,6 +69,14 @@ class ActivityWatcher:
     @property
     def enabled(self) -> bool:
         return self._enabled
+
+    @property
+    def session_mode(self) -> bool:
+        return self._session_mode
+
+    @property
+    def session_label(self) -> str:
+        return "Live session" if self._enabled else "Session idle"
 
     def pause(self) -> None:
         self._enabled = False
