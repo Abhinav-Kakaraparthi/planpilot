@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, desc, select
 
 from screenmind_todo.db import SessionLocal
+from screenmind_todo.meeting_models import MeetingSession
 from screenmind_todo.models import ActivityEvent, TodoTask
 
 router = APIRouter(prefix="/api", tags=["app"])
@@ -86,6 +87,19 @@ class SessionStatusPayload(BaseModel):
     label: str
 
 
+class CopilotPayload(BaseModel):
+    mode: str
+    speaker: str
+    question: str
+    answer: str
+    tone: str
+    follow_up: str
+    screen_signal: str
+    task_signal: str
+    meeting_title: str
+    session_active: bool
+
+
 def _is_noisy_activity(activity: ActivityEvent) -> bool:
     combined = " ".join(
         [
@@ -109,6 +123,122 @@ def _get_filtered_activities(include_noise: bool, limit: int) -> List[ActivityEv
             activities = [a for a in activities if not _is_noisy_activity(a)]
 
         return activities[:limit]
+
+
+def _latest_question(transcript: str) -> tuple[str, str]:
+    if not transcript:
+        return ("No speaker", "")
+
+    lines = [line.strip() for line in transcript.splitlines() if line.strip()]
+    for line in reversed(lines):
+        if "?" not in line:
+            continue
+
+        if ":" in line:
+            speaker, _, question = line.partition(":")
+            return (speaker.strip() or "Meeting", question.strip())
+
+        return ("Meeting", line)
+
+    return ("No speaker", "")
+
+
+def _truncate(value: str, max_length: int = 220) -> str:
+    if len(value) <= max_length:
+        return value
+    return f"{value[: max_length - 3].rstrip()}..."
+
+
+def _build_copilot_payload(mode: str, session_active: bool) -> CopilotPayload:
+    normalized_mode = mode if mode in {"answer", "summary", "tasks"} else "answer"
+
+    with SessionLocal() as db:
+        meeting = db.execute(
+            select(MeetingSession).order_by(desc(MeetingSession.created_at)).limit(1)
+        ).scalar_one_or_none()
+        if meeting:
+            meeting.actions
+        tasks = db.execute(select(TodoTask).order_by(desc(TodoTask.created_at))).scalars().all()
+        activities = db.execute(
+            select(ActivityEvent).order_by(desc(ActivityEvent.created_at))
+        ).scalars().all()
+
+    tasks = list(tasks)
+    activities = [activity for activity in activities if not _is_noisy_activity(activity)][:20]
+
+    speaker, question = _latest_question(meeting.transcript if meeting else "")
+    screen_signal = (
+        _truncate(
+            (activities[0].inferred_summary or activities[0].ocr_text or "").strip()
+            or f"{activities[0].app_name} {activities[0].window_title}",
+            120,
+        )
+        if activities
+        else "No recent screen activity."
+    )
+    open_tasks = [task for task in tasks if task.status != "done"]
+    task_signal = (
+        _truncate("; ".join(task.title for task in open_tasks[:2]), 120)
+        if open_tasks
+        else "No open tasks available."
+    )
+
+    if not meeting:
+        return CopilotPayload(
+            mode=normalized_mode,
+            speaker=speaker,
+            question="No meeting question detected yet.",
+            answer="Load a meeting plan to generate a response.",
+            tone="Concise",
+            follow_up="Open a meeting plan to unlock the copilot context.",
+            screen_signal=screen_signal,
+            task_signal=task_signal,
+            meeting_title="None loaded",
+            session_active=session_active,
+        )
+
+    tone = "Executive" if normalized_mode == "summary" else "Directive" if normalized_mode == "tasks" else "Concise"
+    question_text = question or "No meeting question detected yet."
+
+    if normalized_mode == "summary":
+        answer = _truncate(
+            f"{meeting.summary} Right now the plan health is {meeting.execution_health.replace('_', ' ')} and the next move is {meeting.next_recommendation}.",
+            320,
+        )
+        follow_up = meeting.adaptation_note or meeting.next_recommendation
+    elif normalized_mode == "tasks":
+        action_titles = [f"{action.title} ({action.timeline_bucket})" for action in meeting.actions[:3]]
+        answer = (
+            f"Focus the room on these next actions: {'; '.join(action_titles)}."
+            if action_titles
+            else "No saved action items yet. Generate a plan from a transcript first."
+        )
+        follow_up = "Ask whether the room agrees on owners and due windows."
+    else:
+        answer = _truncate(
+            " ".join(
+                [
+                    f"Answer the question directly: {question}" if question else "Lead with the core product point.",
+                    meeting.summary,
+                    f"Ground the response in the current signal: {screen_signal}",
+                ]
+            ),
+            320,
+        )
+        follow_up = meeting.next_recommendation or "Close by proposing the next concrete step."
+
+    return CopilotPayload(
+        mode=normalized_mode,
+        speaker=speaker,
+        question=question_text,
+        answer=answer,
+        tone=tone,
+        follow_up=follow_up,
+        screen_signal=screen_signal,
+        task_signal=task_signal,
+        meeting_title=meeting.title,
+        session_active=session_active,
+    )
 
 
 @router.get("/health")
@@ -232,3 +362,8 @@ def dashboard(
         "tasks": list(tasks),
         "activities": list(activities),
     }
+
+
+@router.get("/copilot/context", response_model=CopilotPayload)
+def copilot_context(mode: str = Query("answer")) -> CopilotPayload:
+    return _build_copilot_payload(mode=mode, session_active=False)
