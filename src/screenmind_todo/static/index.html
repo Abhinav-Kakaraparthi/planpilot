@@ -5,13 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PlanPilot</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="stylesheet" href="/static/styles.css?v=13" />
+    <link rel="stylesheet" href="/static/styles.css?v=14" />
   </head>
   <body>
     <div class="app-backdrop">
       <div class="backdrop-orb orb-one"></div>
       <div class="backdrop-orb orb-two"></div>
       <div class="backdrop-grid"></div>
+    </div>
+
+    <div id="global-session-indicator" class="global-session-indicator paused" aria-live="polite">
+      <span id="global-session-dot" class="global-session-dot"></span>
+      <span class="global-session-copy">
+        <strong id="global-session-title">Session idle</strong>
+        <span id="global-session-subtitle">Watcher off</span>
+      </span>
     </div>
 
     <div
@@ -27,9 +35,9 @@
           <h3 class="floating-copilot-title">Meeting dock</h3>
         </div>
         <div class="floating-copilot-actions">
-          <button id="floating-open-btn" class="secondary-btn floating-icon-btn" type="button" aria-label="Open copilot page">Open</button>
-          <button id="floating-toggle-btn" class="secondary-btn floating-icon-btn" type="button" aria-label="Minimize dock">Hide</button>
-        </div>
+            <button id="floating-open-btn" class="secondary-btn floating-icon-btn" type="button" aria-label="Open copilot page">Open</button>
+            <button id="floating-toggle-btn" class="secondary-btn floating-icon-btn" type="button" aria-label="Minimize dock">Hide</button>
+          </div>
       </div>
       <div id="floating-copilot-body" class="floating-copilot-body">
         <div class="floating-command-bar">
@@ -45,6 +53,7 @@
           </div>
         </div>
         <div class="floating-mode-row">
+          <span id="floating-session-badge" class="badge muted">Watcher off</span>
           <span id="floating-speaker-chip" class="badge muted">No speaker</span>
           <span id="floating-tone-chip" class="badge">Concise</span>
           <span id="floating-mode-chip" class="badge">Answer mode</span>
@@ -637,6 +646,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=13"></script>
+    <script src="/static/app.js?v=14"></script>
   </body>
 </html>

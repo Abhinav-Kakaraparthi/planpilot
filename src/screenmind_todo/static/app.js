@@ -9,6 +9,7 @@ const state = {
   copilotMode: "answer",
   floatingMinimized: false,
   floatingPosition: null,
+  dockFocused: false,
 };
 
 const el = {
@@ -17,6 +18,9 @@ const el = {
   views: Array.from(document.querySelectorAll(".view-panel")),
   watcherStatus: document.querySelector("#watcher-status"),
   heroStatusPill: document.querySelector("#hero-status-pill"),
+  globalSessionIndicator: document.querySelector("#global-session-indicator"),
+  globalSessionTitle: document.querySelector("#global-session-title"),
+  globalSessionSubtitle: document.querySelector("#global-session-subtitle"),
   watcherToggle: document.querySelector("#watcher-toggle"),
   scanNow: document.querySelector("#scan-now"),
   statOpenTasks: document.querySelector("#stat-open-tasks"),
@@ -70,7 +74,6 @@ const el = {
   refreshCopilotBtn: document.querySelector("#refresh-copilot-btn"),
   floatingCopilot: document.querySelector("#floating-copilot"),
   floatingHeader: document.querySelector(".floating-copilot-header"),
-  floatingBody: document.querySelector("#floating-copilot-body"),
   floatingOpenBtn: document.querySelector("#floating-open-btn"),
   floatingToggleBtn: document.querySelector("#floating-toggle-btn"),
   floatingAskBtn: document.querySelector("#floating-ask-btn"),
@@ -78,6 +81,7 @@ const el = {
   floatingTasksBtn: document.querySelector("#floating-tasks-btn"),
   floatingRefreshBtn: document.querySelector("#floating-refresh-btn"),
   floatingCommandText: document.querySelector("#floating-command-text"),
+  floatingSessionBadge: document.querySelector("#floating-session-badge"),
   floatingSpeakerChip: document.querySelector("#floating-speaker-chip"),
   floatingToneChip: document.querySelector("#floating-tone-chip"),
   floatingModeChip: document.querySelector("#floating-mode-chip"),
@@ -107,6 +111,7 @@ function sentenceCase(value) {
   if (!value) {
     return "";
   }
+
   return value
     .replace(/[_-]/g, " ")
     .replace(/\s+/g, " ")
@@ -143,11 +148,7 @@ function truncate(value, maxLength = 180) {
   if (value.length <= maxLength) {
     return value;
   }
-  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return `${value.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 async function fetchJson(url, options = {}) {
@@ -188,7 +189,7 @@ function setEmpty(container, message) {
 
 function normalizeBucket(bucket) {
   const value = (bucket || "Later").trim().toLowerCase();
-  if (value === "this week" || value === "today" || value === "tomorrow" || value === "next week" || value === "later") {
+  if (["today", "tomorrow", "this week", "next week", "later"].includes(value)) {
     return value;
   }
   return "later";
@@ -236,8 +237,7 @@ function summarizeTaskSignal() {
     return "No open tasks available.";
   }
 
-  const preview = openTasks.slice(0, 2).map((task) => task.title).join("; ");
-  return truncate(preview, 120);
+  return truncate(openTasks.slice(0, 2).map((task) => task.title).join("; "), 120);
 }
 
 function buildCopilotPayload(mode = state.copilotMode) {
@@ -309,10 +309,17 @@ function buildCopilotPayload(mode = state.copilotMode) {
 
 function renderSessionStatus() {
   const active = Boolean(state.session.active);
+  const label = state.session.label || (active ? "Live session" : "Session idle");
+
   el.heroStatusPill.textContent = active ? "Live" : "Idle";
   el.heroStatusPill.className = `status-pill ${active ? "live" : "paused"}`;
-  el.watcherStatus.textContent = state.session.label || (active ? "Live session" : "Session idle");
+  el.watcherStatus.textContent = label;
   el.watcherToggle.textContent = active ? "Stop session" : "Start session";
+  el.globalSessionIndicator.className = `global-session-indicator ${active ? "live" : "paused"}`;
+  el.globalSessionTitle.textContent = label;
+  el.globalSessionSubtitle.textContent = active ? "Watcher on across every view" : "Watcher off across every view";
+  el.floatingSessionBadge.textContent = active ? "Watcher on" : "Watcher off";
+  el.floatingSessionBadge.className = `badge ${active ? "" : "muted"}`.trim();
 }
 
 function renderStats() {
@@ -337,7 +344,6 @@ function renderTaskList() {
 
   tasks.forEach((task) => {
     const fragment = el.templates.task.content.cloneNode(true);
-    const card = fragment.querySelector(".signal-task-card");
     const view = fragment.querySelector(".signal-task-view");
     const title = fragment.querySelector(".card-title");
     const status = fragment.querySelector(".task-status-pill");
@@ -361,7 +367,7 @@ function renderTaskList() {
     priority.textContent = sentenceCase(task.priority);
     priority.classList.add(`priority-${task.priority}`);
     timeline.textContent = sentenceCase(task.timeline_bucket);
-    meta.textContent = `${task.source_window || "Manual"} • ${task.confidence}% confidence • ${formatTimestamp(task.created_at)}`;
+    meta.textContent = `${task.source_window || "Manual"} - ${task.confidence}% confidence - ${formatTimestamp(task.created_at)}`;
     body.textContent = task.reason || "No rationale available.";
     completeButton.textContent = task.status === "done" ? "Reopen" : "Mark done";
     view.classList.toggle("is-done", task.status === "done");
@@ -433,7 +439,7 @@ function renderActivities() {
     const deleteButton = fragment.querySelector(".activity-delete-btn");
 
     title.textContent = activity.window_title || "Untitled activity";
-    meta.textContent = `${activity.app_name || "Unknown app"} • ${activity.confidence}% confidence • ${formatTimestamp(activity.created_at)}`;
+    meta.textContent = `${activity.app_name || "Unknown app"} - ${activity.confidence}% confidence - ${formatTimestamp(activity.created_at)}`;
     body.textContent = truncate(activity.inferred_summary || activity.ocr_text || "No OCR content stored.", 220);
 
     deleteButton.addEventListener("click", async (event) => {
@@ -487,13 +493,11 @@ function renderMeetingList() {
     const button = fragment.querySelector(".meeting-open-btn");
 
     title.textContent = meeting.title;
-    meta.textContent = `${healthLabel(meeting.execution_health)} • ${meeting.progress_percent || 0}% • ${meeting.target_end_date || "No target date"}`;
+    meta.textContent = `${healthLabel(meeting.execution_health)} - ${meeting.progress_percent || 0}% - ${meeting.target_end_date || "No target date"}`;
     item.classList.toggle("active", state.activeMeeting?.id === meeting.id);
-
     button.addEventListener("click", () => {
       void loadMeeting(meeting.id);
     });
-
     el.meetingList.appendChild(fragment);
   });
 }
@@ -513,9 +517,10 @@ function renderExecutionHealth(meeting) {
 
 function createPreviewCard(action) {
   const fragment = el.templates.plannerPreview.content.cloneNode(true);
-  fragment.querySelector(".planner-preview-title").textContent = action.title;
   const priorityChip = fragment.querySelector(".preview-priority-chip");
   const timelineChip = fragment.querySelector(".preview-timeline-chip");
+
+  fragment.querySelector(".planner-preview-title").textContent = action.title;
   priorityChip.textContent = sentenceCase(action.priority);
   priorityChip.classList.add(`preview-priority-${action.priority}`);
   timelineChip.textContent = sentenceCase(action.timeline_bucket);
@@ -546,7 +551,11 @@ function createActionCard(action) {
   blockedChip.textContent = action.is_blocked ? "Blocked" : "Ready";
   blockedChip.classList.add(action.is_blocked ? "blocked" : "ready");
   body.textContent = truncate(
-    [action.rationale, action.dependency_summary ? `Dependency: ${action.dependency_summary}` : "", action.unblocker ? `Unblocker: ${action.unblocker}` : ""]
+    [
+      action.rationale,
+      action.dependency_summary ? `Dependency: ${action.dependency_summary}` : "",
+      action.unblocker ? `Unblocker: ${action.unblocker}` : "",
+    ]
       .filter(Boolean)
       .join(" "),
     260,
@@ -582,9 +591,15 @@ function renderBoards() {
     low: el.priorityLow,
   };
 
-  Object.values(previews).forEach((node) => { node.innerHTML = ""; });
-  Object.values(boards).forEach((node) => { node.innerHTML = ""; });
-  Object.values(timelineTargets).forEach((node) => { node.innerHTML = ""; });
+  Object.values(previews).forEach((node) => {
+    node.innerHTML = "";
+  });
+  Object.values(boards).forEach((node) => {
+    node.innerHTML = "";
+  });
+  Object.values(timelineTargets).forEach((node) => {
+    node.innerHTML = "";
+  });
 
   if (!meeting || !meeting.actions.length) {
     Object.values(previews).forEach((node) => setEmpty(node, "No items."));
@@ -604,7 +619,6 @@ function renderBoards() {
       setEmpty(boards[priority], "No items.");
       return;
     }
-
     filtered.slice(0, 2).forEach((action) => previews[priority].appendChild(createPreviewCard(action)));
     filtered.forEach((action) => boards[priority].appendChild(createActionCard(action)));
   });
@@ -755,7 +769,7 @@ async function handleSessionToggle() {
 
 async function handleScanNow() {
   await fetchJson("/api/scan-once", { method: "POST" });
-  setTimeout(() => {
+  window.setTimeout(() => {
     void refreshDashboard();
   }, 1200);
 }
@@ -832,6 +846,20 @@ function setCopilotMode(mode) {
 }
 
 function setupCopilotControls() {
+  el.floatingCopilot.addEventListener("click", () => {
+    el.floatingCopilot.focus();
+  });
+
+  el.floatingCopilot.addEventListener("focusin", () => {
+    state.dockFocused = true;
+  });
+
+  el.floatingCopilot.addEventListener("focusout", (event) => {
+    if (!el.floatingCopilot.contains(event.relatedTarget)) {
+      state.dockFocused = false;
+    }
+  });
+
   el.refreshCopilotBtn.addEventListener("click", () => renderCopilot());
   el.floatingRefreshBtn.addEventListener("click", () => renderCopilot());
   el.floatingOpenBtn.addEventListener("click", () => setActiveView("copilot"));
@@ -849,6 +877,7 @@ function setupCopilotControls() {
     if (event.target.closest("button")) {
       return;
     }
+
     const rect = el.floatingCopilot.getBoundingClientRect();
     dragState = {
       offsetX: event.clientX - rect.left,
@@ -864,6 +893,7 @@ function setupCopilotControls() {
     if (!dragState) {
       return;
     }
+
     state.floatingPosition = {
       left: Math.max(12, event.clientX - dragState.offsetX),
       top: Math.max(12, event.clientY - dragState.offsetY),
@@ -884,6 +914,7 @@ function setupCopilotControls() {
       if (activeTag !== "INPUT" && activeTag !== "TEXTAREA" && activeTag !== "SELECT") {
         event.preventDefault();
         el.floatingCopilot.focus();
+        state.dockFocused = true;
       }
     }
 
@@ -895,7 +926,13 @@ function setupCopilotControls() {
       setCopilotMode("tasks");
     }
 
-    if (document.activeElement !== el.floatingCopilot) {
+    const activeElement = document.activeElement;
+    const dockHasFocus =
+      state.dockFocused ||
+      activeElement === el.floatingCopilot ||
+      el.floatingCopilot.contains(activeElement);
+
+    if (!dockHasFocus) {
       return;
     }
 
@@ -905,6 +942,7 @@ function setupCopilotControls() {
     }
 
     const step = event.shiftKey ? 24 : 12;
+
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       state.floatingPosition.left = Math.max(12, state.floatingPosition.left - step);
